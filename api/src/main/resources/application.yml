@@ -1,0 +1,20 @@
+spring:
+  profiles:
+    active: @activeProfile@
+  main:
+    banner-mode: off
+
+server:
+  servlet:
+    context-path: /api/v1
+
+logging:
+  level:
+    web: DEBUG
+    org:
+      springframework:
+        web:
+          servlet.mvc.method.annotation:
+            HttpEntityMethodProcessor: TRACE
+            RequestResponseBodyMethodProcessor: TRACE
+#        security: TRACE

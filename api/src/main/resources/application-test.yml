@@ -1,0 +1,9 @@
+spring:
+  mysqldatasource:
+    url: jdbc:mysql://localhost:3306/erudit?useSSL=false
+    username: root
+    password: root
+
+#springdoc:
+#  swagger-ui:
+#    path: /index.html
