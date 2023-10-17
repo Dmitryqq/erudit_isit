@@ -4,15 +4,16 @@ spring:
   main:
     banner-mode: off
 
-server:
-  servlet:
-    context-path: /api/v1
+#server:
+#  servlet:
+#    context-path: /api/v1
 
 logging:
   level:
     web: DEBUG
     org:
       springframework:
+        jdbc.core: TRACE
         web:
           servlet.mvc.method.annotation:
             HttpEntityMethodProcessor: TRACE

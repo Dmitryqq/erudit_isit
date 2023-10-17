@@ -41,4 +41,18 @@ public class User {
         this.role = new Role(roleId, roleCode, roleName);
         this.locked = locked;
     }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", name='" + name + '\'' +
+                ", surname='" + surname + '\'' +
+                ", patronymic='" + patronymic + '\'' +
+                ", role=" + role +
+                ", password='" + (password != null ? "..." : null) + '\'' +
+                ", locked=" + locked +
+                '}';
+    }
 }

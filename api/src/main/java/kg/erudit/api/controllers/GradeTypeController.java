@@ -1,6 +1,5 @@
 package kg.erudit.api.controllers;
 
-import jakarta.websocket.server.PathParam;
 import kg.erudit.api.service.ServiceWrapper;
 import kg.erudit.common.inner.GradeType;
 import kg.erudit.common.resp.DefaultServiceResponse;
@@ -14,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping("/api/v1/gradetypes")
 @Validated
 @Log4j2
 public class GradeTypeController {
@@ -23,25 +23,25 @@ public class GradeTypeController {
         this.serviceWrapper = serviceWrapper;
     }
 
-    @GetMapping(value = "/gradetypes", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListResponse<GradeType>> getGradeTypes() {
         return new ResponseEntity<>(serviceWrapper.getGradeTypes(), HttpStatus.OK);
     }
 
-    @PostMapping(value = "/gradetypes", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SingleItemResponse<GradeType>> addGradeType(@RequestBody GradeType gradeType) {
         return new ResponseEntity<>(serviceWrapper.addGradeType(gradeType), HttpStatus.OK);
     }
 
-    @PutMapping(value = "/gradetypes/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> updateGradeType(@PathParam("id") Integer gradeTypeId,
+    @PutMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> updateGradeType(@PathVariable("id") Integer gradeTypeId,
                                                               @RequestBody GradeType gradeType) {
         gradeType.setId(gradeTypeId);
         return new ResponseEntity<>(serviceWrapper.updateGradeType(gradeType), HttpStatus.OK);
     }
 
-    @DeleteMapping(value = "/gradetypes/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> deleteGradeType(@PathParam("id") Integer gradeTypeId) {
+    @DeleteMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> deleteGradeType(@PathVariable("id") Integer gradeTypeId) {
         return new ResponseEntity<>(serviceWrapper.deleteGradeType(gradeTypeId), HttpStatus.OK);
     }
 }

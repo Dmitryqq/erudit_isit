@@ -1,8 +1,6 @@
 package kg.erudit.api.controllers;
 
-import jakarta.websocket.server.PathParam;
 import kg.erudit.api.service.ServiceWrapper;
-import kg.erudit.common.inner.Class;
 import kg.erudit.common.inner.SubjectClass;
 import kg.erudit.common.inner.User;
 import kg.erudit.common.inner.UserExtended;
@@ -19,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@RequestMapping("/api/v1/")
 @Validated
 @Log4j2
 public class UserController {
@@ -44,12 +43,10 @@ public class UserController {
     }
 
     @PutMapping(value = "/users/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> updateClass(@PathParam("id") Integer classId,
-                                                              @RequestBody Class clazz) {
-//        clazz.setId(classId);
-//        return new ResponseEntity<>(serviceWrapper.updateClass(clazz), HttpStatus.OK);
-//        TODO
-        return null;
+    public ResponseEntity<DefaultServiceResponse> updateUser(@PathVariable("id") Integer userId,
+                                                              @RequestBody UserExtended user) {
+        user.setId(userId);
+        return new ResponseEntity<>(serviceWrapper.updateUser(user), HttpStatus.OK);
     }
 
     @PostMapping(value = "/users/{id}/teacherlink", produces = MediaType.APPLICATION_JSON_VALUE)

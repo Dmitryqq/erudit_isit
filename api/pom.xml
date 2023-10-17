@@ -54,6 +54,11 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.2.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <properties>
@@ -61,8 +66,9 @@
         <maven.compiler.target>18</maven.compiler.target>
     </properties>
 
+    <packaging>war</packaging>
     <build>
-        <finalName>api</finalName>
+        <finalName>ROOT</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>

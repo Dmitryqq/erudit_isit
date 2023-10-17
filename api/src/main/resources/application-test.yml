@@ -4,6 +4,8 @@ spring:
     username: root
     password: root
 
+fileDirectory: "D:/Github/erudit_isit/files"
+
 #springdoc:
 #  swagger-ui:
 #    path: /index.html

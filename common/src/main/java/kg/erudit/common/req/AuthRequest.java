@@ -9,4 +9,12 @@ public class AuthRequest {
     private String username;
     @NotBlank(message = "Поле 'Пароль' не может быть пустым")
     private String password;
+
+    @Override
+    public String toString() {
+        return "AuthRequest{" +
+                "username='" + username + '\'' +
+                ", password='" + (password != null ? "..." : null) + '\'' +
+                '}';
+    }
 }

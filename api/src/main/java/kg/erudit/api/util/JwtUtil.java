@@ -45,7 +45,7 @@ public class JwtUtil {
                 .claim("patronymic", user.getPatronymic())
                 .claim("role", user.getRole().getCode())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 600000))
+                .setExpiration(new Date(System.currentTimeMillis() + 7200000))
                 .signWith(key).compact();
     }
 }

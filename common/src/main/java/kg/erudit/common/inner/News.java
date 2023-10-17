@@ -5,55 +5,71 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({"uuid", "url", "title", "text", "date", "typeName", "images"})
+@JsonPropertyOrder({"id", "uuid", "url", "title", "text", "date", "typeName", "typeId", "images"})
 public class News {
-    private String uuid;
-    private String url;
-    private String title;
-    private String text;
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm dd.MM.yyyy", timezone = "Asia/Bishkek")
-    private Date date;
+    private Integer id;
+    protected String uuid;
+    protected String url;
+    protected String title;
+    protected String text;
     private String typeName;
-    private List<String> images;
+    private Image mainImage;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm dd.MM.yyyy", timezone = "Asia/Bishkek")
+    protected Date date;
+
+    public News(String uuid, String url, String title, String text, Date date, String typeName) {
+        this.uuid = uuid;
+        this.url = url;
+        this.title = title;
+        this.text = text;
+        this.date = date;
+        this.typeName = typeName;
+    }
+
+    public News(String uuid, String url, String title, String text, Date date) {
+        this.uuid = uuid;
+        this.url = url;
+        this.title = title;
+        this.text = text;
+        this.date = date;
+    }
+
+    public News(String uuid, String url, String title, String text, Date date, String typeName, String image) {
+        this.uuid = uuid;
+        this.url = url;
+        this.title = title;
+        this.text = text;
+        this.date = date;
+        this.typeName = typeName;
+        if (image != null) {
+            String[] imagePart = image.split("\\.");
+            this.mainImage = new Image(imagePart[0], imagePart[1]);
+        }
+//        if (this.images == null)
+//            this.images = new ArrayList<>(1);
+//        if (image != null)
+//            this.images.add(image);
+    }
 
     @Override
     public String toString() {
         return "News{" +
-                "uuid='" + uuid + '\'' +
+                "id=" + id +
+                ", uuid='" + uuid + '\'' +
                 ", url='" + url + '\'' +
                 ", title='" + title + '\'' +
                 ", text='" + text + '\'' +
-                ", date=" + date +
                 ", typeName='" + typeName + '\'' +
-                ", images=" + images +
+                ", mainImage=" + mainImage +
+                ", date=" + date +
                 '}';
-    }
-
-    public News(String url, String title, String text, Date date, String typeName) {
-        this.url = url;
-        this.title = title;
-        this.text = text;
-        this.date = date;
-        this.typeName = typeName;
-    }
-
-    public News(String url, String title, String text, Date date, String typeName, String image) {
-        this.url = url;
-        this.title = title;
-        this.text = text;
-        this.date = date;
-        this.typeName = typeName;
-        if (this.images == null)
-            this.images = new ArrayList<>(1);
-        if (image != null)
-            this.images.add(image);
     }
 }

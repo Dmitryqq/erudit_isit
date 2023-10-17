@@ -3,6 +3,7 @@ package kg.erudit.common.inner;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.util.Arrays;
@@ -11,6 +12,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 @Data
+@EqualsAndHashCode(callSuper=false)
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserExtended extends User {
@@ -18,6 +20,7 @@ public class UserExtended extends User {
     private List<Integer> teacherClassIds;
     private List<Integer> teacherSubjectIds;
     private List<SubjectClass> teacherSubjectClassesIds;
+    private String roleCode;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd.MM.yyyy", timezone = "Asia/Bishkek")
     protected Date birthDate;
@@ -54,5 +57,26 @@ public class UserExtended extends User {
         }
         this.birthDate = birthDate;
         this.createDate = createDate;
+    }
+
+    @Override
+    public String toString() {
+        return "UserExtended{" +
+                "studentClassId=" + studentClassId +
+                ", teacherClassIds=" + teacherClassIds +
+                ", teacherSubjectIds=" + teacherSubjectIds +
+                ", teacherSubjectClassesIds=" + teacherSubjectClassesIds +
+                ", roleCode='" + roleCode + '\'' +
+                ", birthDate=" + birthDate +
+                ", createDate=" + createDate +
+                ", id=" + id +
+                ", username='" + username + '\'' +
+                ", name='" + name + '\'' +
+                ", surname='" + surname + '\'' +
+                ", patronymic='" + patronymic + '\'' +
+                ", role=" + role +
+                ", password='" + password + '\'' +
+                ", locked=" + locked +
+                '}';
     }
 }

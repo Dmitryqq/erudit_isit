@@ -1,6 +1,5 @@
 package kg.erudit.api.controllers;
 
-import jakarta.websocket.server.PathParam;
 import kg.erudit.api.service.ServiceWrapper;
 import kg.erudit.common.inner.Class;
 import kg.erudit.common.resp.DefaultServiceResponse;
@@ -14,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping("/api/v1/classes")
 @Validated
 @Log4j2
 public class ClassController {
@@ -23,25 +23,25 @@ public class ClassController {
         this.serviceWrapper = serviceWrapper;
     }
 
-    @GetMapping(value = "/classes", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListResponse<Class>> getClasses() {
         return new ResponseEntity<>(serviceWrapper.getClasses(), HttpStatus.OK);
     }
 
-    @PostMapping (value = "/classes", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping (produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SingleItemResponse<Class>> addClass(@RequestBody Class clazz) {
         return new ResponseEntity<>(serviceWrapper.addClass(clazz), HttpStatus.OK);
     }
 
-    @PutMapping(value = "/classes/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> updateClass(@PathParam("id") Integer classId,
+    @PutMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> updateClass(@PathVariable("id") Integer classId,
                                                               @RequestBody Class clazz) {
         clazz.setId(classId);
         return new ResponseEntity<>(serviceWrapper.updateClass(clazz), HttpStatus.OK);
     }
 
-    @DeleteMapping(value = "/classes/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> deleteClass(@PathParam("id") Integer classId) {
+    @DeleteMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> deleteClass(@PathVariable("id") Integer classId) {
         return new ResponseEntity<>(serviceWrapper.deleteClass(classId), HttpStatus.OK);
     }
 }

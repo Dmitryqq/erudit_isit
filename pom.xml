@@ -12,16 +12,13 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.1.4</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 	<groupId>kg.erudit</groupId>
 	<artifactId>erudit_isit</artifactId>
 	<version>1.0</version>
 	<name>erudit_isit</name>
 	<description>Erudit Isit school electronic system back</description>
-<!--	<properties>-->
-<!--		<java.version>18</java.version>-->
-<!--	</properties>-->
 
 	<profiles>
 		<profile>
@@ -80,14 +77,4 @@
 <!--			<scope>test</scope>-->
 <!--		</dependency>-->
 	</dependencies>
-
-<!--	<build>-->
-<!--		<plugins>-->
-<!--			<plugin>-->
-<!--				<groupId>org.springframework.boot</groupId>-->
-<!--				<artifactId>spring-boot-maven-plugin</artifactId>-->
-<!--			</plugin>-->
-<!--		</plugins>-->
-<!--	</build>-->
-
 </project>

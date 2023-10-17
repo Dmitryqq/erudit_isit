@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO">
+    <Properties>
+        <Property name="log-path">/var/log/erudit</Property>
+        <!--        <Property name="log-path">/logs</Property>-->
+        <Property name="log-pattern">%d{dd-MM-yyy HH:mm:ss.SSS} %-6p [%X{transactionId}] %c{1.}(%L): %m%n</Property>
+<!--        <Property name="log-pattern">%d{dd-MM-yyy HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>-->
+<!--        <Property name="log-pattern">%style{%date{DEFAULT}}{yellow} [%t] %highlight{%-5level}{FATAL=bg_red, ERROR=red, WARN=yellow, INFO=green} %logger{36} - %message\n</Property>-->
+        <Property name="info-file-name">info</Property>
+        <Property name="info-archive-file-pattern">%d{yyyy-MM}/info-%d{yyyy-MM-dd}-%i.log.gz</Property>
+        <Property name="error-file-name">error</Property>
+        <Property name="error-archive-file-pattern">%d{yyyy-MM}/error-%d{yyyy-MM-dd}-%i.log.gz</Property>
+        <Property name="max-file-size">20 MB</Property>
+    </Properties>
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${log-pattern}" />
+        </Console>
+        <RollingFile name="rollingFileInfo" fileName="${log-path}/${info-file-name}.log" filePattern="${log-path}/${info-archive-file-pattern}">
+            <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="NEUTRAL" />
+            <PatternLayout pattern="${log-pattern}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true" />
+                <SizeBasedTriggeringPolicy size="${max-file-size}" />
+            </Policies>
+        </RollingFile>
+        <RollingFile name="rollingFileError" fileName="${log-path}/${error-file-name}.log" filePattern="${log-path}/${error-archive-file-pattern}">
+            <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY" />
+            <PatternLayout pattern="${log-pattern}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true" />
+                <SizeBasedTriggeringPolicy size="${max-file-size}" />
+            </Policies>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="Console" />
+            <AppenderRef ref="rollingFileInfo"/>
+            <AppenderRef ref="rollingFileError"/>
+        </Root>
+<!--        <Logger name="ERROR" level="ERROR">-->
+<!--            <AppenderRef ref="rollingFileError"/>-->
+<!--        </Logger>-->
+    </Loggers>
+</Configuration>

@@ -15,6 +15,7 @@ import java.util.Map;
 @ConfigurationProperties
 public class MySQLDatabaseProperties {
     Map<String,String> queries;
+    Map<String,String> procedures;
 
     @Bean
     public static PropertySourcesPlaceholderConfigurer placeholderConfigurerMySQL(){

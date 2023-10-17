@@ -1,6 +1,5 @@
 package kg.erudit.api.controllers;
 
-import jakarta.websocket.server.PathParam;
 import kg.erudit.api.service.ServiceWrapper;
 import kg.erudit.common.inner.Subject;
 import kg.erudit.common.resp.DefaultServiceResponse;
@@ -14,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping("/api/v1/subjects")
 @Validated
 @Log4j2
 public class SubjectController {
@@ -23,25 +23,25 @@ public class SubjectController {
         this.serviceWrapper = serviceWrapper;
     }
 
-    @GetMapping(value = "/subjects", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListResponse<Subject>> getSubjects() {
         return new ResponseEntity<>(serviceWrapper.getSubjects(), HttpStatus.OK);
     }
 
-    @PostMapping(value = "/subjects", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SingleItemResponse<Subject>> addSubject(@RequestBody Subject subject) {
         return new ResponseEntity<>(serviceWrapper.addSubject(subject), HttpStatus.OK);
     }
 
-    @PutMapping(value = "/subjects/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> updateSubject(@PathParam("id") Integer subjectId,
+    @PutMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> updateSubject(@PathVariable("id") Integer subjectId,
                                                               @RequestBody Subject subject) {
         subject.setId(subjectId);
         return new ResponseEntity<>(serviceWrapper.updateSubject(subject), HttpStatus.OK);
     }
 
-    @DeleteMapping(value = "/subjects/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> deleteSubject(@PathParam("id") Integer subjectId) {
+    @DeleteMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> deleteSubject(@PathVariable("id") Integer subjectId) {
         return new ResponseEntity<>(serviceWrapper.deleteSubject(subjectId), HttpStatus.OK);
     }
 }
