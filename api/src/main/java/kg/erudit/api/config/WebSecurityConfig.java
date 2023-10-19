@@ -57,7 +57,7 @@ public class WebSecurityConfig {
                                 .requestMatchers(mvcMatcherBuilder.pattern(HttpMethod.GET, "/api/v1/landing/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/v3/**")).permitAll()
-                                .anyRequest().authenticated()
+                                .anyRequest().permitAll()
                 )
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable);

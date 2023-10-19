@@ -44,6 +44,7 @@ public class JwtUtil {
                 .claim("surname", user.getSurname())
                 .claim("patronymic", user.getPatronymic())
                 .claim("role", user.getRole().getCode())
+                .claim("pwdChangeRequired", user.getPwdChangeRequired())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 7200000))
                 .signWith(key).compact();

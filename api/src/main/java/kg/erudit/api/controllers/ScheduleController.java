@@ -1,20 +1,25 @@
 package kg.erudit.api.controllers;
 
+import jakarta.annotation.security.RolesAllowed;
+import kg.erudit.api.config.IsPwdChangeNotRequired;
 import kg.erudit.api.service.ServiceWrapper;
-import kg.erudit.common.inner.Class;
 import kg.erudit.common.inner.*;
+import kg.erudit.common.resp.DefaultServiceResponse;
 import kg.erudit.common.resp.GetListResponse;
 import kg.erudit.common.resp.SingleItemResponse;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 
+@IsPwdChangeNotRequired
 @RestController
 @RequestMapping("/api/v1/schedules")
 @Validated
@@ -26,9 +31,13 @@ public class ScheduleController {
         this.serviceWrapper = serviceWrapper;
     }
 
+    @PreAuthorize("hasAuthority('SUPERADMIN')")
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GetListResponse<Class>> getClasses() {
-        return new ResponseEntity<>(serviceWrapper.getClasses(), HttpStatus.OK);
+    public ResponseEntity<SingleItemResponse<ScheduleCompleted>> getSchedule(@RequestParam Integer classId, @RequestParam Integer trimesterId,
+                                                              @RequestParam @DateTimeFormat(pattern="dd.MM.yyyy") Date fromDate,
+                                                             @RequestParam @DateTimeFormat(pattern="dd.MM.yyyy") Date toDate) {
+        ScheduleCompleted schedule = new ScheduleCompleted(classId, trimesterId);
+        return new ResponseEntity<>(serviceWrapper.getSchedule(schedule, fromDate, toDate), HttpStatus.OK);
     }
 
     @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -42,30 +51,21 @@ public class ScheduleController {
         return new ResponseEntity<>(serviceWrapper.fillSchedule(scheduleId, scheduleDayList), HttpStatus.OK);
     }
 
+    @PutMapping(value = "/day/{id}",produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> updateDay(@PathVariable("id") Integer dayId,
+                                                           @RequestBody ScheduleDay scheduleDay) {
+        scheduleDay.setId(dayId);
+        return new ResponseEntity<>(serviceWrapper.updateDay(scheduleDay), HttpStatus.OK);
+    }
+
     @GetMapping(value = "/item_types", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListResponse<ScheduleItemType>> getScheduleItemTypes() {
         return new ResponseEntity<>(serviceWrapper.getScheduleItemTypes(), HttpStatus.OK);
     }
 
+    @RolesAllowed("STUDENT")
     @GetMapping(value = "/template", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListResponse<ScheduleItem>> getScheduleItemTemplate() {
         return new ResponseEntity<>(serviceWrapper.getScheduleItemTemplate(), HttpStatus.OK);
     }
-
-//    @PostMapping (value = "/classes", produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<SingleItemResponse<Class>> addClass(@RequestBody Class clazz) {
-//        return new ResponseEntity<>(serviceWrapper.addClass(clazz), HttpStatus.OK);
-//    }
-//
-//    @PutMapping(value = "/classes/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<DefaultServiceResponse> updateClass(@PathParam("id") Integer classId,
-//                                                              @RequestBody Class clazz) {
-//        clazz.setId(classId);
-//        return new ResponseEntity<>(serviceWrapper.updateClass(clazz), HttpStatus.OK);
-//    }
-//
-//    @DeleteMapping(value = "/classes/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<DefaultServiceResponse> deleteClass(@PathParam("id") Integer classId) {
-//        return new ResponseEntity<>(serviceWrapper.deleteClass(classId), HttpStatus.OK);
-//    }
 }

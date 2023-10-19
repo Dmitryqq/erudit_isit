@@ -1,5 +1,6 @@
 package kg.erudit.common.inner;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,10 +18,13 @@ public class User {
     protected String patronymic;
     protected Role role;
     protected String password;
+    @JsonIgnore
+    private Boolean pwdChangeRequired;
     protected Boolean locked;
 
     //Авторизация
-    public User(Integer id, String username, String name, String surname, String patronymic, String roleCode, String password, Boolean locked) {
+    public User(Integer id, String username, String name, String surname, String patronymic,
+                String roleCode, String password, Boolean pwdChangeRequired, Boolean locked) {
         this.id = id;
         this.username = username;
         this.name = name;
@@ -29,6 +33,7 @@ public class User {
         this.role = new Role();
         this.role.setCode(roleCode);
         this.password = password;
+        this.pwdChangeRequired = pwdChangeRequired;
         this.locked = locked;
     }
 

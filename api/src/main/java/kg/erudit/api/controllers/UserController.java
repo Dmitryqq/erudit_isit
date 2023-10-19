@@ -1,7 +1,6 @@
 package kg.erudit.api.controllers;
 
 import kg.erudit.api.service.ServiceWrapper;
-import kg.erudit.common.inner.SubjectClass;
 import kg.erudit.common.inner.User;
 import kg.erudit.common.inner.UserExtended;
 import kg.erudit.common.resp.DefaultServiceResponse;
@@ -13,8 +12,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/")
@@ -47,12 +44,6 @@ public class UserController {
                                                               @RequestBody UserExtended user) {
         user.setId(userId);
         return new ResponseEntity<>(serviceWrapper.updateUser(user), HttpStatus.OK);
-    }
-
-    @PostMapping(value = "/users/{id}/teacherlink", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> linkSubjectAndClassWithTeacher(@PathVariable("id") Integer userId,
-                                                                                 @RequestBody List<SubjectClass> subjectClasses) {
-        return new ResponseEntity<>(serviceWrapper.linkSubjectAndClassWithTeacher(userId, subjectClasses), HttpStatus.OK);
     }
 
     @GetMapping(value = "/users/{id}/lock", produces = MediaType.APPLICATION_JSON_VALUE)

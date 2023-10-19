@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import kg.erudit.api.util.JwtUtil;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -32,6 +31,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             return;
         }
 
+//        if (Boolean.TRUE.equals(claims.get("pwdChangeRequired")))
+//            throw new PasswordChangeRequiredException("Password change required");
+
         setUpSpringAuthentication(claims);
         chain.doFilter(request, response);
     }
@@ -40,10 +42,12 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         String role = claims.get("role").toString();
         List<String> roles = new ArrayList<>();
         roles.add(role);
+        Boolean pwdChangeRequired = (Boolean) claims.get("pwdChangeRequired");
 
-        log.info("Authorized user '{}' with role '{}'", claims.getSubject(), role);
-        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(claims.getSubject(), null,
-                roles.stream().map(SimpleGrantedAuthority::new).toList());
+        log.info("Authorized user '{}' with role '{}', pwdChangeRequired {}", claims.getSubject(), role, pwdChangeRequired);
+        CustomAuthToken auth = new CustomAuthToken(claims.getSubject(), null,
+                roles.stream().map(SimpleGrantedAuthority::new).toList(), pwdChangeRequired);
+
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 }

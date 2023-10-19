@@ -1,6 +1,5 @@
 package kg.erudit.api.service;
 
-import jakarta.annotation.PostConstruct;
 import kg.erudit.api.util.FileUtil;
 import kg.erudit.api.util.JwtUtil;
 import kg.erudit.api.util.StringUtil;
@@ -18,7 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,53 +27,6 @@ import java.util.UUID;
 public class ServiceWrapper {
     private final MySQLJdbcRepository mySQLJdbcRepository;
     private final FileUtil fileUtil;
-
-//    @PostConstruct
-//    void init() {
-//        Map<String,ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getScheduleDays(14);
-//
-//        List<ScheduleDay> scheduleDays = scheduleDayMap.values().stream().toList();
-//        GetListResponse<ScheduleDay> response = new GetListResponse<>();
-//        response.setItems(scheduleDays);
-//        System.out.printf("");
-//    }
-
-//    @PostConstruct
-//    void init() {
-////        String pw_hash = BCrypt.hashpw("test", BCrypt.gensalt());
-////        System.out.println(pw_hash);
-//
-//        List<Trimester> trimesterList = mySQLJdbcRepository.getTrimesters();
-//        Trimester trimester = trimesterList.get(0);
-//
-//        Schedule schedule = new Schedule();
-//        schedule.setClazz(3);
-//        schedule.setTrimesterId(1);
-//        schedule.setStartDate(trimester.getStartDate());
-//        schedule.setEndDate(trimester.getEndDate());
-//
-//        mySQLJdbcRepository.addSchedule(schedule);
-//
-//        LocalDate startDate = DateUtil.convertToLocalDateViaInstant(new Date(trimester.getStartDate().getTime()));
-//        LocalDate endDate = DateUtil.convertToLocalDateViaInstant(new Date(trimester.getEndDate().getTime()));
-//        long numOfDaysBetween = ChronoUnit.DAYS.between(startDate, endDate);
-//        System.out.println("Number of days between " + startDate + " and " + endDate + " is: " + numOfDaysBetween);
-//        // iterate through the dates between start and end dates
-//        LocalDate currentDate = startDate;
-//        while (!currentDate.isAfter(endDate)) {
-//            if (currentDate.getDayOfWeek().equals(DayOfWeek.SATURDAY) || currentDate.getDayOfWeek().equals(DayOfWeek.SUNDAY)) {
-//                currentDate = currentDate.plusDays(1);
-//                continue;
-//            }
-//            System.out.println(currentDate);
-//            ScheduleDay scheduleDay = new ScheduleDay(DateUtil.convertToDateViaInstant(currentDate));
-//            mySQLJdbcRepository.addScheduleDay(schedule.getId(), scheduleDay);
-//            schedule.getDays().add(scheduleDay);
-//
-//            currentDate = currentDate.plusDays(1);
-//        }
-//        System.out.printf("");
-//    }
 
     public ServiceWrapper(MySQLJdbcRepository mySQLJdbcRepository, FileUtil fileUtil) {
         this.mySQLJdbcRepository = mySQLJdbcRepository;
@@ -218,6 +170,26 @@ public class ServiceWrapper {
         return response;
     }
 
+    public SingleItemResponse<ScheduleCompleted> getSchedule(ScheduleCompleted schedule, Date fromDate, Date toDate) {
+        mySQLJdbcRepository.fillUpSchedule(schedule);
+        if (schedule.getId() == null)
+            return new SingleItemResponse<>(null, "Not found");
+        Map<String,ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getScheduleDays(schedule.getId(), fromDate, toDate);
+        List<ScheduleDay> scheduleDays = scheduleDayMap.values().stream().toList();
+        schedule.setDays(scheduleDays);
+        return new SingleItemResponse<>(schedule, "Found");
+    }
+
+    public GetListResponse<Diary> getDiary(Date fromDate, Date toDate) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = (String) authentication.getPrincipal();
+        Map<Integer, Diary> diaryMap = mySQLJdbcRepository.getDiary(username, fromDate, toDate);
+        List<Diary> diary = diaryMap.values().stream().toList();
+        GetListResponse<Diary> response = new GetListResponse<>();
+        response.setItems(diary);
+        return response;
+    }
+
     public SingleItemResponse<Class> addClass(Class clazz) {
         mySQLJdbcRepository.addClass(clazz);
         return new SingleItemResponse<>(clazz, "Created");
@@ -272,17 +244,13 @@ public class ServiceWrapper {
             case "TEACHER" -> {
                 mySQLJdbcRepository.addTeacherClasses(user);
                 mySQLJdbcRepository.addTeacherSubjects(user);
+                mySQLJdbcRepository.linkSubjectAndClassWithTeacher(user);
             }
             case "STUDENT" -> mySQLJdbcRepository.addStudentClass(user);
             default -> {
             }
         }
         return new SingleItemResponse<>(user, "Created");
-    }
-
-    public DefaultServiceResponse linkSubjectAndClassWithTeacher(Integer userId, List<SubjectClass> subjectClasses) {
-        mySQLJdbcRepository.linkSubjectAndClassWithTeacher(userId, subjectClasses);
-        return new DefaultServiceResponse("Linked");
     }
 
     public SingleItemResponse<Schedule> addSchedule(Schedule schedule) {
@@ -298,6 +266,18 @@ public class ServiceWrapper {
         GetListResponse<ScheduleDay> response = new GetListResponse<>();
         response.setItems(scheduleDays);
         return response;
+    }
+
+    public SingleItemResponse<Homework> addHomework(Homework homework) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = (String) authentication.getPrincipal();
+        mySQLJdbcRepository.addHomework(homework, username);
+        return new SingleItemResponse<>(homework, "Created");
+    }
+
+    public DefaultServiceResponse updateDay(ScheduleDay scheduleDay) {
+        mySQLJdbcRepository.updateScheduleDay(scheduleDay.getItems());
+        return new DefaultServiceResponse("Updated");
     }
 
     public DefaultServiceResponse updateClass(Class clazz) {
@@ -320,6 +300,8 @@ public class ServiceWrapper {
                 mySQLJdbcRepository.addTeacherClasses(user);
                 mySQLJdbcRepository.deleteTeacherSubjects(user.getId());
                 mySQLJdbcRepository.addTeacherSubjects(user);
+                mySQLJdbcRepository.deleteTeacherSubjectAndClass(user.getId());
+                mySQLJdbcRepository.linkSubjectAndClassWithTeacher(user);
             }
             case "STUDENT" -> mySQLJdbcRepository.updateUserStudentClass(user);
             default -> {
@@ -362,7 +344,6 @@ public class ServiceWrapper {
     public DefaultServiceResponse updateReview(Review review) {
         if (review.getImage().getFileName() == null) {
             Review oldReview = mySQLJdbcRepository.getReview(review.getId());
-//            fileUtil.deleteFile("reviews/" + oldReview.getImage().getFullFileName());
             String imageUuid = oldReview.getImage() != null ? oldReview.getImage().getFileName() : UUID.randomUUID().toString().replace("-", "");
             review.getImage().setFileName(imageUuid);
             fileUtil.saveFile(review.getImage(), "reviews");
@@ -393,7 +374,7 @@ public class ServiceWrapper {
         return new DefaultServiceResponse("Deleted");
     }
 
-    public DefaultServiceResponse deleteReview(Integer reviewId) throws IOException {
+    public DefaultServiceResponse deleteReview(Integer reviewId) {
         Review review = mySQLJdbcRepository.getReview(reviewId);
         mySQLJdbcRepository.deleteReview(reviewId);
         if (review.getImage() != null) {
@@ -421,7 +402,7 @@ public class ServiceWrapper {
         User user = mySQLJdbcRepository.getUser(request.getUsername());
         if (user == null)
             throw new AuthenticateException("Неверные авторизационные данные");
-        if (user.getLocked())
+        if (Boolean.TRUE.equals(user.getLocked()))
             throw new AuthenticateException("Пользователь заблокирован");
         if (!BCrypt.checkpw(request.getPassword(), user.getPassword()))
             throw new AuthenticateException("Неверные авторизационные данные");

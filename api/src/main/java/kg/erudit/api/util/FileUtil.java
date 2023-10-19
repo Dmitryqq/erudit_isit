@@ -21,6 +21,8 @@ public class FileUtil {
 
     public String encodeFileToBase64Binary(String fileName, String path) throws IOException {
         File file = new File(String.format("%s/%s/%s", root, path, fileName));
+        if (!file.exists())
+            return null;
         byte[] fileContent = Files.readAllBytes(file.toPath());
         return Base64.encodeBase64String(fileContent);
     }
@@ -51,11 +53,15 @@ public class FileUtil {
 
     public void deleteDirectory(String path) throws IOException {
         File file = new File(String.format("%s/%s/", root, path));
+        if (!file.exists())
+            return;
         FileUtils.deleteDirectory(file);
     }
 
     public void deleteOldFiles(String path, List<String> fileNames) throws IOException {
         File filesRoot = new File(String.format("%s/%s/", root, path));
+        if (!filesRoot.exists() || filesRoot.listFiles() == null)
+            return;
         Arrays.stream(filesRoot.listFiles())
                 .filter(file -> !fileNames.contains(file.getName()))
                 .forEach(File::delete);
