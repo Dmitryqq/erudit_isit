@@ -1,4 +1,4 @@
-package kg.erudit.api.config;
+package kg.erudit.api.filters;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

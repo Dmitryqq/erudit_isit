@@ -1,6 +1,5 @@
 package kg.erudit.api.controllers;
 
-import jakarta.websocket.server.PathParam;
 import kg.erudit.api.service.ServiceWrapper;
 import kg.erudit.common.inner.Review;
 import kg.erudit.common.resp.DefaultServiceResponse;
@@ -43,7 +42,7 @@ public class ReviewController {
     }
 
     @PutMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> updateReview(@PathParam("id") Integer reviewId,
+    public ResponseEntity<DefaultServiceResponse> updateReview(@PathVariable("id") Integer reviewId,
                                                               @RequestBody Review review) {
         review.setId(reviewId);
         return new ResponseEntity<>(serviceWrapper.updateReview(review), HttpStatus.OK);

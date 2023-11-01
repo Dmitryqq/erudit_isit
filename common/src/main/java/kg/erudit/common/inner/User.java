@@ -47,6 +47,13 @@ public class User {
         this.locked = locked;
     }
 
+    public User(Integer id, String name, String surname, String patronymic) {
+        this.id = id;
+        this.name = name;
+        this.surname = surname;
+        this.patronymic = patronymic;
+    }
+
     @Override
     public String toString() {
         return "User{" +

@@ -3,6 +3,7 @@ package kg.erudit.api.controllers;
 import jakarta.annotation.security.RolesAllowed;
 import kg.erudit.api.config.IsPwdChangeNotRequired;
 import kg.erudit.api.service.ServiceWrapper;
+import kg.erudit.common.exceptions.FillScheduleException;
 import kg.erudit.common.inner.*;
 import kg.erudit.common.resp.DefaultServiceResponse;
 import kg.erudit.common.resp.GetListResponse;
@@ -47,12 +48,12 @@ public class ScheduleController {
 
     @PostMapping(value = "/{id}/fill",produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListResponse<ScheduleDay>> fillSchedule(@PathVariable("id") Integer scheduleId,
-                                                                     @RequestBody List<ScheduleDayBase> scheduleDayList) {
+                                                                     @RequestBody List<ScheduleDayBase> scheduleDayList) throws FillScheduleException {
         return new ResponseEntity<>(serviceWrapper.fillSchedule(scheduleId, scheduleDayList), HttpStatus.OK);
     }
 
-    @PutMapping(value = "/day/{id}",produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> updateDay(@PathVariable("id") Integer dayId,
+    @PutMapping(value = "/day/{dayId}",produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> updateDay(@PathVariable("dayId") Integer dayId,
                                                            @RequestBody ScheduleDay scheduleDay) {
         scheduleDay.setId(dayId);
         return new ResponseEntity<>(serviceWrapper.updateDay(scheduleDay), HttpStatus.OK);
@@ -63,9 +64,31 @@ public class ScheduleController {
         return new ResponseEntity<>(serviceWrapper.getScheduleItemTypes(), HttpStatus.OK);
     }
 
+    @GetMapping(value = "/{classId}/subject_teachers", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<GetListResponse<SubjectTeacher>> getSubjectTeachers(@PathVariable("classId") Integer classId) {
+        return new ResponseEntity<>(serviceWrapper.getSubjectTeachersForClass(classId), HttpStatus.OK);
+    }
+
     @RolesAllowed("STUDENT")
     @GetMapping(value = "/template", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListResponse<ScheduleItem>> getScheduleItemTemplate() {
         return new ResponseEntity<>(serviceWrapper.getScheduleItemTemplate(), HttpStatus.OK);
+    }
+
+    @GetMapping(value = "/item/{scheduleItemId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<GetListResponse<StudentItem>> getScheduleItemById(@PathVariable("scheduleItemId") Integer scheduleItemId) {
+        return new ResponseEntity<>(serviceWrapper.getScheduleItemById(scheduleItemId), HttpStatus.OK);
+    }
+
+    @PutMapping(value = "/item/{scheduleItemId}/visit", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> setStudentVisit(@PathVariable("scheduleItemId") Integer scheduleItemId,
+                                                                        @RequestParam Integer studentId) {
+        return new ResponseEntity<>(serviceWrapper.setStudentVisit(scheduleItemId, studentId), HttpStatus.OK);
+    }
+
+    @PutMapping(value = "/item/{scheduleItemId}/unvisit", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> setStudentUnvisit(@PathVariable("scheduleItemId") Integer scheduleItemId,
+                                                                  @RequestParam Integer studentId) {
+        return new ResponseEntity<>(serviceWrapper.setStudentUnvisit(scheduleItemId, studentId), HttpStatus.OK);
     }
 }

@@ -28,6 +28,7 @@ public class ScheduleCompleted extends Schedule {
                 ", id=" + id +
                 ", classId=" + classId +
                 ", trimesterId=" + trimesterId +
+                ", status='" + status + '\'' +
                 ", startDate=" + startDate +
                 ", endDate=" + endDate +
                 '}';

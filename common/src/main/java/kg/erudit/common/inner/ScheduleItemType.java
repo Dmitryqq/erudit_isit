@@ -16,6 +16,11 @@ public class ScheduleItemType {
     private String name;
     private Integer durationMin;
 
+    public ScheduleItemType(Integer id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
     @Override
     public String toString() {
         return "ScheduleItemType{" +

@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -15,26 +16,32 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({"subjectName","homework","grades","startTime","endTime"})
+@JsonPropertyOrder({"subjectName", "visited", "homework", "grades", "startTime", "endTime"})
 public class DiaryItem {
     private String subjectName;
-    private String homework;
+    private Boolean visited;
+    private List<String> homework;
     private List<Grade> grades;
     @JsonFormat(pattern = "HH:mm")
     private LocalTime startTime;
     @JsonFormat(pattern = "HH:mm")
     private LocalTime endTime;
 
-    public DiaryItem(String subjectName, String homework, String grades, LocalTime startTime, LocalTime endTime) {
+    public DiaryItem(String subjectName, String homework, String grades, Boolean visited, LocalTime startTime, LocalTime endTime) {
         this.subjectName = subjectName;
-        this.homework = homework;
+        this.visited = visited;
+//        _____
+        if (homework != null) {
+            String[] homeworkArray = homework.split("_____");
+            this.homework = Arrays.asList(homeworkArray);
+        }
 
         if (grades != null) {
             String[] gradesArray = grades.split(";");
             this.grades = new LinkedList<>();
             for (String a : gradesArray) {
                 String[] b = a.split("_");
-                this.grades.add(new Grade(Integer.parseInt(b[0]), Integer.parseInt(b[1])));
+                this.grades.add(new Grade(b[0], Integer.parseInt(b[1])));
             }
         }
 

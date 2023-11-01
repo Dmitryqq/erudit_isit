@@ -13,7 +13,18 @@ import lombok.NoArgsConstructor;
 @JsonPropertyOrder({"gradeTypeId","value"})
 public class Grade {
     protected Integer gradeTypeId;
+    protected String gradeTypeName;
     protected Integer value;
+
+    public Grade(Integer gradeTypeId, Integer value) {
+        this.gradeTypeId = gradeTypeId;
+        this.value = value;
+    }
+
+    public Grade(String gradeTypeName, Integer value) {
+        this.gradeTypeName = gradeTypeName;
+        this.value = value;
+    }
 
     @Override
     public String toString() {

@@ -41,10 +41,13 @@ public class MySQLJdbcRepository {
         });
     }
 
-    public List<Subject> getSubjects() {
+    public List<Subject> getSubjects(Boolean teacherRequired) {
         List<Subject> subjectList = new LinkedList<>();
-        jdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SUBJECTS"), rs -> {
-            subjectList.add(new Subject(rs.getInt("id"), rs.getString("name")));
+        String query = mySQLDatabaseProperties.getQueries().get("GET_SUBJECTS");
+        if (Boolean.TRUE.equals(teacherRequired))
+            query += " WHERE teacher_required = 1";
+        namedJdbcTemplate.query(query, rs -> {
+            subjectList.add(new Subject(rs.getInt("id"), rs.getString("name"), rs.getInt("teacher_required") != 0));
         });
         return subjectList;
     }
@@ -81,9 +84,12 @@ public class MySQLJdbcRepository {
         return newsTypes;
     }
 
-    public List<User> getUsers() {
+    public List<User> getUsers(Integer roleId) {
         List<User> usersList = new LinkedList<>();
-        jdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_USERS"), rs -> {
+        String request = mySQLDatabaseProperties.getQueries().get("GET_USERS");
+        if (roleId != null)
+            request += " WHERE u.role_id = " + roleId;
+        jdbcTemplate.query(request, rs -> {
             usersList.add(new UserExtended(rs.getInt("id"), rs.getString("username"), rs.getString("name"), rs.getString("surname"), rs.getString("patronymic"), rs.getInt("r_id"), rs.getString("r_code"), rs.getString("r_name"), rs.getInt("locked") != 0, rs.getTimestamp("create_date")));
         });
         return usersList;
@@ -113,6 +119,16 @@ public class MySQLJdbcRepository {
         return scheduleItemTypeList;
     }
 
+    public List<SubjectTeacher> getSubjectTeachersForClass(Integer classId) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("classId", classId);
+        List<SubjectTeacher> subjectTeachers = new LinkedList<>();
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SUBJECT_TEACHERS_FOR_CLASS"), parameters, rs -> {
+            subjectTeachers.add(new SubjectTeacher(rs.getInt("s_id"), rs.getString("s_name"),
+                    rs.getInt("u_id"), rs.getString("u_name"), rs.getString("u_surname"), rs.getString("u_patronymic")));
+        });
+        return subjectTeachers;
+    }
+
     public List<ScheduleItem> getScheduleItemTemplate() {
         List<ScheduleItem> scheduleItemList = new LinkedList<>();
         jdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_ITEM_TEMPLATE"), rs -> {
@@ -121,11 +137,21 @@ public class MySQLJdbcRepository {
         return scheduleItemList;
     }
 
+    public Schedule getSchedule(Integer scheduleId) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleId", scheduleId);
+        return namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE"), parameters, rs -> {
+            if (!rs.next()) return null;
+            return new Schedule(rs.getInt("id"), rs.getInt("class_id"), rs.getInt("trimester_id"),
+                    rs.getString("status"), rs.getDate("start_date"), rs.getDate("end_date"));
+        });
+    }
+
     public void fillUpSchedule(ScheduleCompleted schedule) {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("classId", schedule.getClassId()).addValue("trimesterId", schedule.getTrimesterId());
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_BY_CLASS_TRIMESTER"), parameters, rs -> {
 //            if (!rs.next()) return;
             schedule.setId(rs.getInt("id"));
+            schedule.setStatus(rs.getString("status"));
             schedule.setStartDate(rs.getDate("start_date"));
             schedule.setEndDate(rs.getDate("end_date"));
         });
@@ -133,7 +159,7 @@ public class MySQLJdbcRepository {
     }
 
     public Map<String, ScheduleDay> getScheduleDays(Integer scheduleId, java.util.Date fromDate, java.util.Date toDate) {
-        Map<String, ScheduleDay> scheduleDayMap = new HashMap<>();
+        Map<String, ScheduleDay> scheduleDayMap = new LinkedHashMap<>();
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", scheduleId).addValue("fromDate", new java.sql.Date(fromDate.getTime()), Types.TIMESTAMP).addValue("toDate", new java.sql.Date(toDate.getTime()), Types.TIMESTAMP);
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_BY_DATE_RANGE"), parameters, rs -> {
             scheduleDayMap.put(String.valueOf(rs.getInt("id")), new ScheduleDay(rs.getInt("id"), rs.getDate("date")));
@@ -143,7 +169,7 @@ public class MySQLJdbcRepository {
     }
 
     public Map<String, ScheduleDay> getScheduleDays(Integer scheduleId) {
-        Map<String, ScheduleDay> scheduleDayMap = new HashMap<>();
+        Map<String, ScheduleDay> scheduleDayMap = new LinkedHashMap<>();
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", scheduleId);
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_CURRENT_WEEK_SCHEDULE_BY_ID"), parameters, rs -> {
             scheduleDayMap.put(String.valueOf(rs.getInt("id")), new ScheduleDay(rs.getInt("id"), rs.getDate("date")));
@@ -163,7 +189,7 @@ public class MySQLJdbcRepository {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("dayIds", scheduleDayMap.keySet().stream().toList());
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_ITEMS_BY_DAY_IDS"), parameters, rs -> {
             scheduleDayMap.get(String.valueOf(rs.getInt("day_id"))).getItems().add(new ScheduleItem(rs.getInt("id"), rs.getInt("type_id"), rs.getObject("subject_id", Integer.class),
-                    rs.getObject("teacher_id", Integer.class), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+                    rs.getObject("teacher_id", Integer.class), rs.getString("status"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
         });
     }
 
@@ -178,11 +204,75 @@ public class MySQLJdbcRepository {
                 diary = new Diary(rs.getDate("date"));
                 diaryMap.put(rs.getInt("day_id"), diary);
             }
-            DiaryItem diaryItem = new DiaryItem(rs.getString("subject_name"),rs.getString("homework"), rs.getString("grades"),
-                    rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
+            DiaryItem diaryItem = new DiaryItem(rs.getString("subject_name"), rs.getString("homework"), rs.getString("grades"),
+                    rs.getInt("visited") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
             diary.getDiaryItems().add(diaryItem);
         });
         return diaryMap;
+    }
+
+    public Map<Integer, StudentItem> getDiaryByScheduleItemId(Integer scheduleItemId) {
+        Map<Integer, StudentItem> diaryItems = new LinkedHashMap<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleItemId", scheduleItemId);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_DIARY_BY_SCHEDULE_ITEM_ID"), parameters, rs -> {
+            StudentItem studentItem = diaryItems.get(rs.getInt("u_id"));
+            if (studentItem == null) {
+                studentItem = new StudentItem(rs.getInt("u_id"), rs.getString("u_name"), rs.getString("u_surname"), rs.getString("u_patronymic"));
+                diaryItems.put(studentItem.getId(), studentItem);
+            }
+            studentItem.addScheduleDay(rs.getInt("d_id"), rs.getDate("date"), rs.getInt("si_id"),
+                    rs.getString("grades"), rs.getInt("visited") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
+        });
+        return diaryItems;
+    }
+
+    public Map<Integer, StudentItem> getDiaryByClassAndSubjectIds(Integer classId, Integer subjectId, Integer teacherId) {
+        Map<Integer, StudentItem> diaryItems = new LinkedHashMap<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("classId", classId)
+                .addValue("subjectId", subjectId)
+                .addValue("teacherId", teacherId);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_DIARY_BY_CLASS_AND_SUBJECT_IDS"), parameters, rs -> {
+            StudentItem studentItem = diaryItems.get(rs.getInt("u_id"));
+            if (studentItem == null) {
+                studentItem = new StudentItem(rs.getInt("u_id"), rs.getString("u_name"), rs.getString("u_surname"), rs.getString("u_patronymic"));
+                diaryItems.put(studentItem.getId(), studentItem);
+            }
+            studentItem.addScheduleDay(rs.getInt("d_id"), rs.getDate("date"), rs.getInt("si_id"),
+                    rs.getString("grades"), rs.getInt("visited") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
+        });
+        return diaryItems;
+    }
+
+
+    public List<ScheduleItemDashboard> getStudentDashboardSchedule(Integer userId, java.util.Date date) {
+        List<ScheduleItemDashboard> scheduleItems = new LinkedList<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("userId", userId)
+                .addValue("date", new java.sql.Date(date.getTime()), Types.TIMESTAMP);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_ITEMS_STUDENT_DASHBOARD"), parameters, rs -> {
+            scheduleItems.add(new ScheduleItemDashboard(rs.getInt("id"), rs.getInt("sit_id"), rs.getString("sit_name"),
+                    rs.getInt("sj_id"), rs.getString("sj_name"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+        });
+        return scheduleItems;
+    }
+
+    public List<ScheduleItemDashboard> getTeacherDashboardSchedule(Integer userId, java.util.Date date) {
+        List<ScheduleItemDashboard> scheduleItems = new LinkedList<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("userId", userId)
+                .addValue("date", new java.sql.Date(date.getTime()), Types.TIMESTAMP);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_ITEMS_TEACHER_DASHBOARD"), parameters, rs -> {
+            scheduleItems.add(new ScheduleItemDashboard(rs.getInt("id"), rs.getInt("sit_id"), rs.getString("sit_name"),
+                    rs.getInt("sj_id"), rs.getString("sj_name"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+        });
+        return scheduleItems;
+    }
+
+    public List<HomeworkDate> getNextLessonDates(Integer scheduleItemId) {
+        List<HomeworkDate> homeworkDates = new LinkedList<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleItemId", scheduleItemId);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_HOMEWORK_NEXT_DATES"), parameters, rs -> {
+            homeworkDates.add(new HomeworkDate(rs.getInt("id"), rs.getDate("date"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+        });
+        return homeworkDates;
     }
 
     public void addClass(Class clazz) {
@@ -240,6 +330,7 @@ public class MySQLJdbcRepository {
         jdbcTemplate.update(connection -> {
             PreparedStatement preparedStatement = connection.prepareStatement(mySQLDatabaseProperties.getQueries().get("INSERT_SUBJECT"), Statement.RETURN_GENERATED_KEYS);
             preparedStatement.setString(1, subject.getName());
+            preparedStatement.setInt(2, Boolean.TRUE.equals(subject.getTeacherRequired()) ? 1 : 0);
             return preparedStatement;
         }, keyHolder);
         subject.setId(keyHolder.getKey().intValue());
@@ -324,9 +415,13 @@ public class MySQLJdbcRepository {
         schedule.setId(keyHolder.getKey().intValue());
     }
 
-    public void createScheduleTempTable(Integer scheduleId, List<ScheduleDayBase> scheduleDayList) {
-//        jdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DROP_TEMP_SCHEDULE_ITEM"));
-//        jdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("CREATE_TEMP_SCHEDULE_ITEM"));
+    public void updateScheduleStatus(Integer scheduleId, String status) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleId", scheduleId)
+                .addValue("status", status);
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_SCHEDULE_STATUS"), parameters);
+    }
+
+    public void insertTempTableAndFillSchedule(Integer scheduleId, List<ScheduleDayBase> scheduleDayList) {
         for (ScheduleDayBase scheduleDay : scheduleDayList) {
             jdbcTemplate.batchUpdate(mySQLDatabaseProperties.getQueries().get("INSERT_TEMP_SCHEDULE_ITEM"), new BatchPreparedStatementSetter() {
                 public void setValues(PreparedStatement ps, int i) throws SQLException {
@@ -335,7 +430,10 @@ public class MySQLJdbcRepository {
                     ps.setInt(3, scheduleDay.getItems().get(i).getTypeId());
                     if (scheduleDay.getItems().get(i).getTypeId() == 1 && scheduleDay.getItems().get(i).getSubjectId() != null && scheduleDay.getItems().get(i).getUserId() != null) {
                         ps.setInt(4, scheduleDay.getItems().get(i).getSubjectId());
-                        ps.setInt(5, scheduleDay.getItems().get(i).getUserId());
+                        if (scheduleDay.getItems().get(i).getUserId() != null)
+                            ps.setInt(5, scheduleDay.getItems().get(i).getUserId());
+                        else
+                            ps.setNull(5, Types.INTEGER);
                     } else {
                         ps.setNull(4, Types.INTEGER);
                         ps.setNull(5, Types.INTEGER);
@@ -352,8 +450,9 @@ public class MySQLJdbcRepository {
         jdbcTemplate.update(mySQLDatabaseProperties.getProcedures().get("FILL_SCHEDULE_FROM_TEMP"), scheduleId);
     }
 
-    public void newGrade(GradeRequest gradeRequest, String username) {
-        jdbcTemplate.update(mySQLDatabaseProperties.getProcedures().get("NEW_GRADE"), gradeRequest.getScheduleItemId(), gradeRequest.getStudentId(), gradeRequest.getGradeTypeId(), gradeRequest.getValue(), username);
+    public void newGrade(GradeRequest gradeRequest, Integer userId) {
+        jdbcTemplate.update(mySQLDatabaseProperties.getProcedures().get("NEW_GRADE"),
+                gradeRequest.getScheduleItemId(), gradeRequest.getStudentId(), gradeRequest.getGradeTypeId(), gradeRequest.getValue(), userId);
     }
 
     public void addScheduleDay(Integer scheduleId, ScheduleDay scheduleDay) {
@@ -379,14 +478,36 @@ public class MySQLJdbcRepository {
         homework.setId(keyHolder.getKey().intValue());
     }
 
+    public int updateStudentVisit(Integer scheduleItemId, Integer studentId, Integer visited) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleItemId", scheduleItemId)
+                .addValue("studentId", studentId).addValue("visited", visited);
+        return namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_STUDENT_VISIT"), parameters);
+    }
+
+    public int addStudentVisit(Integer scheduleItemId, Integer studentId, Integer visited) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleItemId", scheduleItemId)
+                .addValue("studentId", studentId).addValue("visited", visited);
+        return namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("INSERT_STUDENT_VISIT"), parameters);
+    }
+
     public void updateScheduleDay(List<ScheduleItem> scheduleItems) {
-        //TODO добавить новые итемы без id, удалить те id что не пришли, апдейт времени???
+        //TODO добавить новые итемы без id, удалить те id что не пришли
         jdbcTemplate.batchUpdate(mySQLDatabaseProperties.getQueries().get("UPDATE_SCHEDULE_DAY"), new BatchPreparedStatementSetter() {
             public void setValues(PreparedStatement ps, int i) throws SQLException {
                 ps.setInt(1, scheduleItems.get(i).getTypeId());
-                ps.setInt(2, scheduleItems.get(i).getSubjectId());
-                ps.setInt(3, scheduleItems.get(i).getUserId());
-                ps.setInt(4, scheduleItems.get(i).getId());
+                if (scheduleItems.get(i).getTypeId() == 1 && scheduleItems.get(i).getSubjectId() != null) {
+                    ps.setInt(2, scheduleItems.get(i).getSubjectId());
+                    if (scheduleItems.get(i).getUserId() != null)
+                        ps.setInt(3, scheduleItems.get(i).getUserId());
+                    else
+                        ps.setNull(3, Types.INTEGER);
+                } else {
+                    ps.setNull(2, Types.INTEGER);
+                    ps.setNull(3, Types.INTEGER);
+                }
+                ps.setTime(4, Time.valueOf(scheduleItems.get(i).getStartTime()));
+                ps.setTime(5, Time.valueOf(scheduleItems.get(i).getEndTime()));
+                ps.setInt(6, scheduleItems.get(i).getId());
             }
 
             public int getBatchSize() {
@@ -403,6 +524,11 @@ public class MySQLJdbcRepository {
     public void updateUser(UserExtended user) {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", user.getId()).addValue("username", user.getUsername()).addValue("name", user.getName()).addValue("surname", user.getSurname()).addValue("patronymic", user.getPatronymic()).addValue("password", user.getPassword()).addValue("birth_date", user.getBirthDate());
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_USER"), parameters);
+    }
+
+    public void updateUserPassword(String username, String newPassword) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("username", username).addValue("password", newPassword);
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_USER_PASSWORD"), parameters);
     }
 
     public void updateUserNoPass(UserExtended user) {
@@ -436,7 +562,9 @@ public class MySQLJdbcRepository {
     }
 
     public void updateSubject(Subject subject) {
-        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", subject.getId()).addValue("name", subject.getName());
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", subject.getId())
+                .addValue("name", subject.getName())
+                .addValue("teacher_required", Boolean.TRUE.equals(subject.getTeacherRequired()) ? 1 : 0);
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_SUBJECT"), parameters);
     }
 

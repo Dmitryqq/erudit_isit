@@ -18,6 +18,7 @@ public class Schedule {
     protected Integer id;
     protected Integer classId;
     protected Integer trimesterId;
+    protected String status;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd.MM.yyyy", timezone = "Asia/Bishkek")
     protected Date startDate;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd.MM.yyyy", timezone = "Asia/Bishkek")
@@ -34,6 +35,7 @@ public class Schedule {
                 "id=" + id +
                 ", classId=" + classId +
                 ", trimesterId=" + trimesterId +
+                ", status='" + status + '\'' +
                 ", startDate=" + startDate +
                 ", endDate=" + endDate +
                 '}';

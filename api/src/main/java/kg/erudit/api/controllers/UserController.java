@@ -14,7 +14,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/")
+@RequestMapping("/api/v1/users")
 @Validated
 @Log4j2
 public class UserController {
@@ -24,39 +24,39 @@ public class UserController {
         this.serviceWrapper = serviceWrapper;
     }
 
-    @GetMapping(value = "/users", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GetListResponse<User>> getUsers() {
-        return new ResponseEntity<>(serviceWrapper.getUsers(), HttpStatus.OK);
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<GetListResponse<User>> getUsers(@RequestParam(required = false) Integer roleId) {
+        return new ResponseEntity<>(serviceWrapper.getUsers(roleId), HttpStatus.OK);
     }
 
-    @GetMapping(value = "/users/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SingleItemResponse<UserExtended>> getUserDetails(@PathVariable("id") Integer userId) {
         return new ResponseEntity<>(serviceWrapper.getUserDetails(userId), HttpStatus.OK);
     }
 
-    @PostMapping(value = "/users", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SingleItemResponse<UserExtended>> addUser(@RequestBody UserExtended user) {
         return new ResponseEntity<>(serviceWrapper.addUser(user), HttpStatus.OK);
     }
 
-    @PutMapping(value = "/users/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PutMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<DefaultServiceResponse> updateUser(@PathVariable("id") Integer userId,
                                                               @RequestBody UserExtended user) {
         user.setId(userId);
         return new ResponseEntity<>(serviceWrapper.updateUser(user), HttpStatus.OK);
     }
 
-    @GetMapping(value = "/users/{id}/lock", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{id}/lock", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<DefaultServiceResponse> lockUser(@PathVariable("id") Integer userId) {
         return new ResponseEntity<>(serviceWrapper.lockUser(userId), HttpStatus.OK);
     }
 
-    @GetMapping(value = "/users/{id}/unlock", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{id}/unlock", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<DefaultServiceResponse> unlockUser(@PathVariable("id") Integer userId) {
         return new ResponseEntity<>(serviceWrapper.unlockUser(userId), HttpStatus.OK);
     }
 
-    @DeleteMapping(value = "/users/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @DeleteMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<DefaultServiceResponse> deleteUser(@PathVariable("id") Integer userId) {
         return new ResponseEntity<>(serviceWrapper.deleteUser(userId), HttpStatus.OK);
     }

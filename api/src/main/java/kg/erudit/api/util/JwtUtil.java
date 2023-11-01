@@ -1,18 +1,18 @@
 package kg.erudit.api.util;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SecurityException;
 import jakarta.servlet.http.HttpServletRequest;
 import kg.erudit.common.inner.User;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.UUID;
 
+@Log4j2
 public class JwtUtil {
     private static final String HEADER = "Authorization";
     private static final  String PREFIX = "Bearer ";
@@ -24,8 +24,23 @@ public class JwtUtil {
         return authenticationHeader != null && authenticationHeader.startsWith(PREFIX);
     }
 
+    public static boolean checkJwtToken(StompHeaderAccessor accessor) {
+        String authenticationHeader = accessor.getFirstNativeHeader(HEADER);
+        return authenticationHeader != null && authenticationHeader.startsWith(PREFIX);
+    }
+
     public static Claims validateToken(HttpServletRequest request) {
         String jwtToken = request.getHeader(HEADER).replace(PREFIX, "");
+        try {
+            return jwtParser.parseClaimsJws(jwtToken).getBody();
+        } catch (SecurityException | ExpiredJwtException e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    public static Claims validateToken(StompHeaderAccessor accessor) {
+        String jwtToken = accessor.getFirstNativeHeader(HEADER).replace(PREFIX, "");
         try {
             return jwtParser.parseClaimsJws(jwtToken).getBody();
         } catch (SecurityException e) {

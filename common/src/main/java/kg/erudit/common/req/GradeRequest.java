@@ -2,8 +2,10 @@ package kg.erudit.common.req;
 
 import kg.erudit.common.inner.Grade;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper=false)
 public class GradeRequest extends Grade {
     private Integer scheduleItemId;
     private Integer studentId;

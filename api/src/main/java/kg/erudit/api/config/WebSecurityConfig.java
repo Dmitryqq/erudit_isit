@@ -1,5 +1,7 @@
 package kg.erudit.api.config;
 
+import kg.erudit.api.filters.JwtAuthorizationFilter;
+import kg.erudit.api.filters.MdcFilterFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -31,9 +33,11 @@ public class WebSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+//        configuration.setAllowedOrigins(Arrays.asList("http://127.0.0.1:5500"));
         configuration.setAllowedOrigins(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
+//        configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -48,16 +52,11 @@ public class WebSecurityConfig {
                 .addFilterAfter(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(mdcFilterFilter, JwtAuthorizationFilter.class)
                 .authorizeHttpRequests(authorize -> authorize
-//                        .requestMatchers(HttpMethod.POST, "/login").permitAll()
-//                        .requestMatchers(HttpMethod.GET, "/landing/**").permitAll()
-//                        .requestMatchers( "/swagger-ui/**", "/v3/**").permitAll()
-//                        .anyRequest().authenticated()
                                 .requestMatchers(mvcMatcherBuilder.pattern(HttpMethod.POST, "/api/v1/login")).permitAll()
-//                                .requestMatchers(mvcMatcherBuilder.pattern(HttpMethod.GET, "/api/v1/landing")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern(HttpMethod.GET, "/api/v1/landing/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/swagger-ui/**")).permitAll()
                                 .requestMatchers(mvcMatcherBuilder.pattern("/v3/**")).permitAll()
-                                .anyRequest().permitAll()
+                                .anyRequest().authenticated()
                 )
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable);

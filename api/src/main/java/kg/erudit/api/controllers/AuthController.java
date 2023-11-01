@@ -4,7 +4,9 @@ import jakarta.validation.Valid;
 import kg.erudit.api.service.ServiceWrapper;
 import kg.erudit.common.exceptions.AuthenticateException;
 import kg.erudit.common.req.AuthRequest;
+import kg.erudit.common.req.SetPasswordRequest;
 import kg.erudit.common.resp.AuthResponse;
+import kg.erudit.common.resp.DefaultServiceResponse;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,7 +29,12 @@ public class AuthController {
     @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<AuthResponse> auth(@Valid @RequestBody AuthRequest authRequest) throws AuthenticateException {
         AuthResponse authResponse = serviceWrapper.authenticate(authRequest);
-
         return new ResponseEntity<>(authResponse, HttpStatus.OK);
+    }
+
+    @PostMapping(value = "/set_password", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> setPassword(@Valid @RequestBody SetPasswordRequest setPasswordRequest) throws AuthenticateException {
+        DefaultServiceResponse response = serviceWrapper.setPassword(setPasswordRequest);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

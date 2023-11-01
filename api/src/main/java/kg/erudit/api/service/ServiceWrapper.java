@@ -1,13 +1,16 @@
 package kg.erudit.api.service;
 
+import kg.erudit.api.config.CustomAuthToken;
 import kg.erudit.api.util.FileUtil;
 import kg.erudit.api.util.JwtUtil;
 import kg.erudit.api.util.StringUtil;
 import kg.erudit.common.exceptions.AuthenticateException;
+import kg.erudit.common.exceptions.FillScheduleException;
 import kg.erudit.common.inner.Class;
 import kg.erudit.common.inner.*;
 import kg.erudit.common.req.AuthRequest;
 import kg.erudit.common.req.GradeRequest;
+import kg.erudit.common.req.SetPasswordRequest;
 import kg.erudit.common.resp.*;
 import kg.erudit.db.repository.MySQLJdbcRepository;
 import lombok.extern.log4j.Log4j2;
@@ -17,10 +20,7 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @Log4j2
@@ -43,7 +43,7 @@ public class ServiceWrapper {
             newsItem.getMainImage().setBase64(base64image);
         }
         response.setNews(newsList);
-        List<Review> reviewList = mySQLJdbcRepository.getMainReviews(3, 0, false);
+        List<Review> reviewList = mySQLJdbcRepository.getMainReviews(99, 0, false);
         for (Review review : reviewList) {
             if (review.getImage() == null)
                 continue;
@@ -112,9 +112,9 @@ public class ServiceWrapper {
         return response;
     }
 
-    public GetListResponse<Subject> getSubjects() {
+    public GetListResponse<Subject> getSubjects(Boolean teacherRequired) {
         GetListResponse<Subject> response = new GetListResponse<>();
-        response.setItems(mySQLJdbcRepository.getSubjects());
+        response.setItems(mySQLJdbcRepository.getSubjects(teacherRequired));
         return response;
     }
 
@@ -142,9 +142,9 @@ public class ServiceWrapper {
         return response;
     }
 
-    public GetListResponse<User> getUsers() {
+    public GetListResponse<User> getUsers(Integer roleId) {
         GetListResponse<User> response = new GetListResponse<>();
-        response.setItems(mySQLJdbcRepository.getUsers());
+        response.setItems(mySQLJdbcRepository.getUsers(roleId));
         return response;
     }
 
@@ -164,6 +164,12 @@ public class ServiceWrapper {
         return response;
     }
 
+    public GetListResponse<SubjectTeacher> getSubjectTeachersForClass(Integer classId) {
+        GetListResponse<SubjectTeacher> response = new GetListResponse<>();
+        response.setItems(mySQLJdbcRepository.getSubjectTeachersForClass(classId));
+        return response;
+    }
+
     public GetListResponse<ScheduleItem> getScheduleItemTemplate() {
         GetListResponse<ScheduleItem> response = new GetListResponse<>();
         response.setItems(mySQLJdbcRepository.getScheduleItemTemplate());
@@ -174,10 +180,32 @@ public class ServiceWrapper {
         mySQLJdbcRepository.fillUpSchedule(schedule);
         if (schedule.getId() == null)
             return new SingleItemResponse<>(null, "Not found");
+        if ("FILLING".equals(schedule.getStatus()))
+            return new SingleItemResponse<>(schedule, "Filling in process");
+        if ("CREATED".equals(schedule.getStatus()))
+            return new SingleItemResponse<>(schedule, "Not filled");
         Map<String,ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getScheduleDays(schedule.getId(), fromDate, toDate);
         List<ScheduleDay> scheduleDays = scheduleDayMap.values().stream().toList();
         schedule.setDays(scheduleDays);
         return new SingleItemResponse<>(schedule, "Found");
+    }
+
+    public GetListResponse<ScheduleItemDashboard> getStudentScheduleDashboard(Date date) {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        List<ScheduleItemDashboard> scheduleItems = mySQLJdbcRepository.getStudentDashboardSchedule(userId, date);
+        GetListResponse<ScheduleItemDashboard> response = new GetListResponse<>();
+        response.setItems(scheduleItems);
+        return response;
+    }
+
+    public GetListResponse<ScheduleItemDashboard> getTeacherScheduleDashboard(Date date) {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        List<ScheduleItemDashboard> scheduleItems = mySQLJdbcRepository.getTeacherDashboardSchedule(userId, date);
+        GetListResponse<ScheduleItemDashboard> response = new GetListResponse<>();
+        response.setItems(scheduleItems);
+        return response;
     }
 
     public GetListResponse<Diary> getDiary(Date fromDate, Date toDate) {
@@ -187,6 +215,31 @@ public class ServiceWrapper {
         List<Diary> diary = diaryMap.values().stream().toList();
         GetListResponse<Diary> response = new GetListResponse<>();
         response.setItems(diary);
+        return response;
+    }
+
+    public GetListResponse<StudentItem> getScheduleItemById(Integer scheduleItemId) {
+        Map<Integer, StudentItem> studentItemMap = mySQLJdbcRepository.getDiaryByScheduleItemId(scheduleItemId);
+        List<StudentItem> studentItems = studentItemMap.values().stream().toList();
+        GetListResponse<StudentItem> response = new GetListResponse<>();
+        response.setItems(studentItems);
+        return response;
+    }
+
+    public GetListResponse<StudentItem> getDiaryByClassAndSubjectIds(Integer classId, Integer subjectId) {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        Map<Integer, StudentItem> studentItemMap = mySQLJdbcRepository.getDiaryByClassAndSubjectIds(classId, subjectId, userId);
+        List<StudentItem> studentItems = studentItemMap.values().stream().toList();
+        GetListResponse<StudentItem> response = new GetListResponse<>();
+        response.setItems(studentItems);
+        return response;
+    }
+
+    public GetListResponse<HomeworkDate> getNextLessonsDates(Integer scheduleItemId) {
+        List<HomeworkDate> homeworkDates = mySQLJdbcRepository.getNextLessonDates(scheduleItemId);
+        GetListResponse<HomeworkDate> response = new GetListResponse<>();
+        response.setItems(homeworkDates);
         return response;
     }
 
@@ -215,9 +268,9 @@ public class ServiceWrapper {
     }
 
     public SingleItemResponse<GradeType> newGrade(GradeRequest gradeRequest) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = (String) authentication.getPrincipal();
-        mySQLJdbcRepository.newGrade(gradeRequest, username);
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        mySQLJdbcRepository.newGrade(gradeRequest, userId);
         return new SingleItemResponse<>(null, "Created");
     }
 
@@ -258,8 +311,12 @@ public class ServiceWrapper {
         return new SingleItemResponse<>(schedule, "Created");
     }
 
-    public GetListResponse<ScheduleDay> fillSchedule(Integer scheduleId, List<ScheduleDayBase> scheduleDayList) {
-        mySQLJdbcRepository.createScheduleTempTable(scheduleId, scheduleDayList);
+    public GetListResponse<ScheduleDay> fillSchedule(Integer scheduleId, List<ScheduleDayBase> scheduleDayList) throws FillScheduleException {
+        Schedule schedule = mySQLJdbcRepository.getSchedule(scheduleId);
+        if (schedule == null || "!CREATED".equals(schedule.getStatus()))
+            throw new FillScheduleException("Расписание не найдено, уже заполнено или в процессе создания");
+        mySQLJdbcRepository.updateScheduleStatus(scheduleId, "FILLING");
+        mySQLJdbcRepository.insertTempTableAndFillSchedule(scheduleId, scheduleDayList);
         Map<String,ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getScheduleDays(scheduleId);
 
         List<ScheduleDay> scheduleDays = scheduleDayMap.values().stream().toList();
@@ -273,6 +330,22 @@ public class ServiceWrapper {
         String username = (String) authentication.getPrincipal();
         mySQLJdbcRepository.addHomework(homework, username);
         return new SingleItemResponse<>(homework, "Created");
+    }
+
+    public DefaultServiceResponse setStudentVisit(Integer scheduleItemId, Integer studentId) {
+        int result = mySQLJdbcRepository.updateStudentVisit(scheduleItemId, studentId, 1);
+        if (result == 0) {
+            mySQLJdbcRepository.addStudentVisit(scheduleItemId, studentId, 1);
+        }
+        return new DefaultServiceResponse("Updated");
+    }
+
+    public DefaultServiceResponse setStudentUnvisit(Integer scheduleItemId, Integer studentId) {
+        int result = mySQLJdbcRepository.updateStudentVisit(scheduleItemId, studentId, 0);
+        if (result == 0) {
+            mySQLJdbcRepository.addStudentVisit(scheduleItemId, studentId, 0);
+        }
+        return new DefaultServiceResponse("Updated");
     }
 
     public DefaultServiceResponse updateDay(ScheduleDay scheduleDay) {
@@ -312,22 +385,27 @@ public class ServiceWrapper {
 
     public DefaultServiceResponse updateNews(NewsSingle news) throws IOException {
         mySQLJdbcRepository.updateNews(news);
-        String filePath = "news/" + news.getUuid();
-        List<String> fileNames = news.getImages().stream().map(Image::getFullFileName).toList();
-        fileUtil.deleteOldFiles(filePath, fileNames);
-        mySQLJdbcRepository.deleteOldNewsImages(news.getId(), fileNames);
+        NewsSingle newsCurrent = mySQLJdbcRepository.getSingleNews(news.getId());
+        String filePath = "news/" + newsCurrent.getUuid();
+        List<String> fileNames = news.getImages().stream().map(Image::getFullFileName).filter(Objects::nonNull).toList();
+        if (!fileNames.isEmpty()) {
+            fileUtil.deleteOldFiles(filePath, fileNames);
+            mySQLJdbcRepository.deleteOldNewsImages(news.getId(), fileNames);
+        }
+        List<Image> newImages = new LinkedList<>();
         for (Image image : news.getImages()) {
             if (image.getFileName() != null) {
                 mySQLJdbcRepository.updateNewsImage(image);
-                news.getImages().remove(image);
-                image = null;
+//                news.getImages().remove(image);
+//                image = null;
                 continue;
             }
             String imageUuid = UUID.randomUUID().toString().replace("-", "");
             image.setFileName(imageUuid);
-            fileUtil.saveFile(image, "news/" + news.getUuid());
+            fileUtil.saveFile(image, filePath);
+            newImages.add(image);
         }
-        mySQLJdbcRepository.addNewsImage(news.getId(), news.getImages());
+        mySQLJdbcRepository.addNewsImage(news.getId(), newImages);
         return new DefaultServiceResponse("Updated");
     }
 
@@ -409,5 +487,16 @@ public class ServiceWrapper {
 
         String token = JwtUtil.getJwtToken(user);
         return new AuthResponse(token);
+    }
+
+    public DefaultServiceResponse setPassword(SetPasswordRequest request) throws AuthenticateException {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = (String) authentication.getPrincipal();
+        User user = mySQLJdbcRepository.getUser(username);
+        if (!BCrypt.checkpw(request.getOldPassword(), user.getPassword()))
+            throw new AuthenticateException("Пароль введен неверно");
+        String passwordHash = BCrypt.hashpw(request.getNewPassword(), BCrypt.gensalt());
+        mySQLJdbcRepository.updateUserPassword(username, passwordHash);
+        return new DefaultServiceResponse("Пароль изменен");
     }
 }

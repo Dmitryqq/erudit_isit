@@ -24,8 +24,8 @@ public class SubjectController {
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GetListResponse<Subject>> getSubjects() {
-        return new ResponseEntity<>(serviceWrapper.getSubjects(), HttpStatus.OK);
+    public ResponseEntity<GetListResponse<Subject>> getSubjects(@RequestParam(required = false, defaultValue = "true") Boolean teacherRequired) {
+        return new ResponseEntity<>(serviceWrapper.getSubjects(teacherRequired), HttpStatus.OK);
     }
 
     @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)

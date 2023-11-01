@@ -21,6 +21,8 @@ public class Image {
 
     @JsonIgnore
     public String getFullFileName() {
+//        if (fileName == null || ext == null)
+//            return null;
         return fileName + "." + ext;
     }
 
