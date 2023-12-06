@@ -63,7 +63,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
-
     </dependencies>
 
     <properties>
@@ -78,7 +77,21 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <excludes>
+                    <exclude>keystore.p12</exclude>
+                </excludes>
             </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>keystore.p12</include>
+                </includes>
+            </resource>
+<!--            <resource>-->
+<!--                <directory>src/main/resources/keystore/**</directory>-->
+<!--                <filtering>false</filtering>-->
+<!--            </resource>-->
         </resources>
         <plugins>
             <plugin>

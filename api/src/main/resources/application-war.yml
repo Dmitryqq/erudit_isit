@@ -3,6 +3,12 @@ spring:
     url: jdbc:mysql://localhost:3306/erudit?useSSL=false
     username: erudit
     password: Erud1t_P@ss$645
+  data:
+    mongodb:
+      username: erudit
+      password: erudit_#211
+      database: erudit
+      port: 27018
 
 #P@ssw0rd&654
 

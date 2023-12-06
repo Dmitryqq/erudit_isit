@@ -8,10 +8,17 @@ import kg.erudit.common.exceptions.AuthenticateException;
 import kg.erudit.common.exceptions.FillScheduleException;
 import kg.erudit.common.inner.Class;
 import kg.erudit.common.inner.*;
+import kg.erudit.common.inner.chat.ChatListItem;
+import kg.erudit.common.inner.chat.ChatMessage;
+import kg.erudit.common.inner.chat.MessageStatus;
+import kg.erudit.common.inner.notifications.Notification;
+import kg.erudit.common.inner.notifications.NotificationType;
 import kg.erudit.common.req.AuthRequest;
 import kg.erudit.common.req.GradeRequest;
 import kg.erudit.common.req.SetPasswordRequest;
 import kg.erudit.common.resp.*;
+import kg.erudit.db.repository.ChatMessageRepository;
+import kg.erudit.db.repository.ChatRoomRepository;
 import kg.erudit.db.repository.MySQLJdbcRepository;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.security.core.Authentication;
@@ -20,16 +27,30 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j2
 public class ServiceWrapper {
     private final MySQLJdbcRepository mySQLJdbcRepository;
+    private final ChatRoomService chatRoomService;
+    private final ChatMessageService chatMessageService;
+    private final NotificationService notificationService;
+    private final ChatRoomRepository chatRoomRepository;
+    private final ChatMessageRepository chatMessageRepository;
     private final FileUtil fileUtil;
+    private final DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
 
-    public ServiceWrapper(MySQLJdbcRepository mySQLJdbcRepository, FileUtil fileUtil) {
+    public ServiceWrapper(MySQLJdbcRepository mySQLJdbcRepository, ChatRoomService chatRoomService, ChatMessageService chatMessageService, NotificationService notificationService, ChatRoomRepository chatRoomRepository, ChatMessageRepository chatMessageRepository, FileUtil fileUtil) {
         this.mySQLJdbcRepository = mySQLJdbcRepository;
+        this.chatRoomService = chatRoomService;
+        this.chatMessageService = chatMessageService;
+        this.notificationService = notificationService;
+        this.chatRoomRepository = chatRoomRepository;
+        this.chatMessageRepository = chatMessageRepository;
         this.fileUtil = fileUtil;
     }
 
@@ -92,6 +113,20 @@ public class ServiceWrapper {
         return response;
     }
 
+    public GetListResponse<InnerNews> getInnerNews() {
+        GetListResponse<InnerNews> response = new GetListResponse<>();
+        List<InnerNews> newsList = mySQLJdbcRepository.getInnerNews();
+        response.setItems(newsList);
+        return response;
+    }
+
+    public GetListResponse<Event> getEvents() {
+        GetListResponse<Event> response = new GetListResponse<>();
+        List<Event> eventList = mySQLJdbcRepository.getEvents();
+        response.setItems(eventList);
+        return response;
+    }
+
     public SingleItemResponse<NewsSingle> getNewsSingleItem(String url) throws IOException {
         return getNewsSingleSingleItemResponse(mySQLJdbcRepository.getSingleNews(url));
     }
@@ -148,6 +183,12 @@ public class ServiceWrapper {
         return response;
     }
 
+    public GetListResponse<User> getStudents(Integer classId) {
+        GetListResponse<User> response = new GetListResponse<>();
+        response.setItems(mySQLJdbcRepository.getStudents(classId));
+        return response;
+    }
+
     public SingleItemResponse<UserExtended> getUserDetails(Integer userId) {
         return new SingleItemResponse<>(mySQLJdbcRepository.getUserDetails(userId));
     }
@@ -184,7 +225,33 @@ public class ServiceWrapper {
             return new SingleItemResponse<>(schedule, "Filling in process");
         if ("CREATED".equals(schedule.getStatus()))
             return new SingleItemResponse<>(schedule, "Not filled");
-        Map<String,ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getScheduleDays(schedule.getId(), fromDate, toDate);
+        Map<java.sql.Date, ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getScheduleDaysItems(schedule.getId(), fromDate, toDate);
+        List<ScheduleDay> scheduleDays = scheduleDayMap.values().stream().toList();
+        schedule.setDays(scheduleDays);
+        return new SingleItemResponse<>(schedule, "Found");
+    }
+
+    public SingleItemResponse<ScheduleCompleted> getIndividualSchedule(ScheduleCompleted schedule, Date fromDate, Date toDate) {
+        ScheduleCompleted classShedule = new ScheduleCompleted();
+        classShedule.setStudentId(schedule.getStudentId());
+        classShedule.setTrimesterId(schedule.getTrimesterId());
+        mySQLJdbcRepository.getClassScheduleByStudent(classShedule);
+        if (classShedule.getId() == null)
+            return new SingleItemResponse<>(null, "Class schedule not found");
+        if ("FILLING".equals(classShedule.getStatus()))
+            return new SingleItemResponse<>(schedule, "Class schedule filling in process");
+        if ("CREATED".equals(classShedule.getStatus()))
+            return new SingleItemResponse<>(schedule, "Class schedule not filled");
+
+        mySQLJdbcRepository.fillUpIndividualSchedule(schedule);
+        //TODO не создавать?
+        if (schedule.getId() == null) {
+            schedule.setStartDate(classShedule.getStartDate());
+            schedule.setEndDate(classShedule.getEndDate());
+            mySQLJdbcRepository.addIndividualSchedule(schedule);
+        }
+
+        Map<java.sql.Date, ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getIndividualScheduleDaysItems(classShedule.getId(), schedule.getId(), fromDate, toDate);
         List<ScheduleDay> scheduleDays = scheduleDayMap.values().stream().toList();
         schedule.setDays(scheduleDays);
         return new SingleItemResponse<>(schedule, "Found");
@@ -209,20 +276,20 @@ public class ServiceWrapper {
     }
 
     public GetListResponse<Diary> getDiary(Date fromDate, Date toDate) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = (String) authentication.getPrincipal();
-        Map<Integer, Diary> diaryMap = mySQLJdbcRepository.getDiary(username, fromDate, toDate);
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        Map<java.sql.Date, Diary> diaryMap = mySQLJdbcRepository.getDiary(userId, fromDate, toDate);
         List<Diary> diary = diaryMap.values().stream().toList();
         GetListResponse<Diary> response = new GetListResponse<>();
         response.setItems(diary);
         return response;
     }
 
-    public GetListResponse<StudentItem> getScheduleItemById(Integer scheduleItemId) {
-        Map<Integer, StudentItem> studentItemMap = mySQLJdbcRepository.getDiaryByScheduleItemId(scheduleItemId);
-        List<StudentItem> studentItems = studentItemMap.values().stream().toList();
-        GetListResponse<StudentItem> response = new GetListResponse<>();
-        response.setItems(studentItems);
+    public GetListResponse<ClassItem> getScheduleItemByIds(String scheduleItemIds) {
+        Map<Integer, ClassItem> classItemMap = mySQLJdbcRepository.getDiaryByScheduleItemIds(scheduleItemIds);
+        List<ClassItem> classItems = classItemMap.values().stream().toList();
+        GetListResponse<ClassItem> response = new GetListResponse<>();
+        response.setItems(classItems);
         return response;
     }
 
@@ -243,9 +310,81 @@ public class ServiceWrapper {
         return response;
     }
 
+    public GetListResponse<ChatListItem> getMessages() {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        GetListResponse<ChatListItem> response = new GetListResponse<>();
+
+        Map<Integer, String> chatUserList = chatRoomService.getChatUsers(userId);
+        if (chatUserList.isEmpty()) {
+            response.setItems(List.of());
+            return response;
+        }
+
+        List<ChatListItem> chatListItems = mySQLJdbcRepository.getChatUsersInfo(chatUserList);
+        chatListItems.forEach(item -> {
+            item.setMessage(chatMessageRepository.findTopByChatId(item.getChatId()));
+            item.setUnreadCount(chatMessageRepository.countBySenderIdAndRecipientIdAndStatus(item.getUserId(), userId, MessageStatus.RECEIVED));
+        });
+
+        chatListItems.sort(Comparator.comparing(i -> i.getMessage().getTimestamp()));
+
+        response.setItems(chatListItems);
+        return response;
+    }
+
+    public GetListResponse<Notification> getNotifications(Integer limit) {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        GetListResponse<Notification> response = new GetListResponse<>();
+
+        List<Notification> notifications = notificationService.findNotifications(userId, limit);
+
+        response.setItems(notifications);
+        return response;
+    }
+
+    public GetListResponse<ChatMessage> getChatMessages(Integer recipientId, Integer limit) {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+
+        List<ChatMessage> messages = chatMessageService.findChatMessages(userId, recipientId, limit);
+
+        GetListResponse<ChatMessage> response = new GetListResponse<>();
+        response.setItems(messages);
+        return response;
+    }
+
     public SingleItemResponse<Class> addClass(Class clazz) {
         mySQLJdbcRepository.addClass(clazz);
         return new SingleItemResponse<>(clazz, "Created");
+    }
+
+    public SingleItemResponse<InnerNews> addInnerNews(InnerNews news) {
+        mySQLJdbcRepository.addInnerNews(news);
+        List<Integer> studentIds = mySQLJdbcRepository.getStudents(news.getClassId()).stream().map(User::getId).toList();
+        String notificationText = String.format("Новая новость \"%s\" (%s) на %s",
+                news.getName(), news.getDescription(), dateFormat.format(news.getDate()));
+
+        for (Integer studentId: studentIds) {
+            Notification notification = new Notification(studentId, notificationText, NotificationType.NEW_NEWS);
+            notificationService.saveAndSend(notification);
+        }
+        return new SingleItemResponse<>(news, "Created");
+    }
+
+    public SingleItemResponse<Event> addEvent(Event event) {
+        mySQLJdbcRepository.addEvent(event);
+        List<Integer> studentIds = mySQLJdbcRepository.getStudents(event.getClassId()).stream().map(User::getId).toList();
+        String notificationText = String.format("Новое событие \"%s\" (%s) на %s",
+                event.getName(), event.getDescription(), dateFormat.format(event.getDate()));
+
+        for (Integer studentId: studentIds) {
+            Notification notification = new Notification(studentId, notificationText, NotificationType.NEW_EVENT);
+            notificationService.saveAndSend(notification);
+        }
+
+        return new SingleItemResponse<>(event, "Created");
     }
 
     public SingleItemResponse<NewsSingle> addNews(NewsSingle news) {
@@ -270,7 +409,15 @@ public class ServiceWrapper {
     public SingleItemResponse<GradeType> newGrade(GradeRequest gradeRequest) {
         CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
         Integer userId = authentication.getUserId();
-        mySQLJdbcRepository.newGrade(gradeRequest, userId);
+        Map<String, Object> newGradeInfo = mySQLJdbcRepository.newGrade(gradeRequest, userId);
+
+        if (!newGradeInfo.isEmpty()) {
+            String notificationText = String.format("Вы получили новую оценку %s (%s) по предмету \"%s\" (%s)",
+                    gradeRequest.getValue(), newGradeInfo.get("grade_type_name"), newGradeInfo.get("subject_name"), newGradeInfo.get("teacher_fullname"));
+            Notification notification = new Notification(gradeRequest.getStudentId(), notificationText, NotificationType.NEW_GRADE);
+            notificationService.saveAndSend(notification);
+        }
+
         return new SingleItemResponse<>(null, "Created");
     }
 
@@ -290,6 +437,8 @@ public class ServiceWrapper {
     }
 
     public SingleItemResponse<UserExtended> addUser(UserExtended user) {
+//        User userDB = mySQLJdbcRepository.getUser(user.getUsername());
+        //TODO checkUsername
         user.setPassword(BCrypt.hashpw(user.getPassword(), BCrypt.gensalt()));
         mySQLJdbcRepository.addUser(user);
         user.setPassword(null);
@@ -317,7 +466,7 @@ public class ServiceWrapper {
             throw new FillScheduleException("Расписание не найдено, уже заполнено или в процессе создания");
         mySQLJdbcRepository.updateScheduleStatus(scheduleId, "FILLING");
         mySQLJdbcRepository.insertTempTableAndFillSchedule(scheduleId, scheduleDayList);
-        Map<String,ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getScheduleDays(scheduleId);
+        Map<java.sql.Date, ScheduleDay> scheduleDayMap = mySQLJdbcRepository.getScheduleDays(scheduleId);
 
         List<ScheduleDay> scheduleDays = scheduleDayMap.values().stream().toList();
         GetListResponse<ScheduleDay> response = new GetListResponse<>();
@@ -350,6 +499,27 @@ public class ServiceWrapper {
 
     public DefaultServiceResponse updateDay(ScheduleDay scheduleDay) {
         mySQLJdbcRepository.updateScheduleDay(scheduleDay.getItems());
+        return new DefaultServiceResponse("Updated");
+    }
+
+    public DefaultServiceResponse updateIndividualDay(Integer scheduleId, ScheduleDay scheduleDay) {
+        List<ScheduleItem> lessonsUpdate = scheduleDay.getItems().stream().filter(scheduleItem -> scheduleItem.getTypeId() == 1).toList();
+        List<ScheduleItem> lessons = mySQLJdbcRepository.getIndividualScheduleDaysLessons(scheduleId, scheduleDay.getDate());
+        for (int i = 0; i < lessons.size(); i++) {
+            ScheduleItem lessonCurrent = lessons.get(i);
+            ScheduleItem lessonUpdate = lessonsUpdate.get(i);
+            if (Boolean.TRUE.equals(lessonCurrent.getIndividual())) {
+                if (lessonUpdate.getUserId() == null || lessonUpdate.getSubjectId() == null) {
+                    mySQLJdbcRepository.deleteScheduleItem(lessonUpdate.getId());
+                    continue;
+                }
+                mySQLJdbcRepository.updateScheduleItem(lessonUpdate);
+            } else {
+                if (Objects.equals(lessonUpdate.getUserId(), lessonCurrent.getUserId()) && Objects.equals(lessonUpdate.getSubjectId(), lessonCurrent.getSubjectId()))
+                    continue;
+                mySQLJdbcRepository.addIndividualScheduleItem(scheduleId, scheduleDay.getDate(), lessonUpdate);
+            }
+        }
         return new DefaultServiceResponse("Updated");
     }
 
@@ -409,6 +579,16 @@ public class ServiceWrapper {
         return new DefaultServiceResponse("Updated");
     }
 
+    public DefaultServiceResponse updateInnerNews(InnerNews news) {
+        mySQLJdbcRepository.updateInnerNews(news);
+        return new DefaultServiceResponse("Updated");
+    }
+
+    public DefaultServiceResponse updateEvent(Event event) {
+        mySQLJdbcRepository.updateEvent(event);
+        return new DefaultServiceResponse("Updated");
+    }
+
     public DefaultServiceResponse updateGradeType(GradeType gradeType) {
         mySQLJdbcRepository.updateGradeType(gradeType);
         return new DefaultServiceResponse("Updated");
@@ -420,7 +600,7 @@ public class ServiceWrapper {
     }
 
     public DefaultServiceResponse updateReview(Review review) {
-        if (review.getImage().getFileName() == null) {
+        if (review.getImage() == null) {
             Review oldReview = mySQLJdbcRepository.getReview(review.getId());
             String imageUuid = oldReview.getImage() != null ? oldReview.getImage().getFileName() : UUID.randomUUID().toString().replace("-", "");
             review.getImage().setFileName(imageUuid);
@@ -439,6 +619,16 @@ public class ServiceWrapper {
         String newsUuid = mySQLJdbcRepository.getSingleNewsUuidById(newsId);
         mySQLJdbcRepository.deleteNews(newsId);
         fileUtil.deleteDirectory("news/" + newsUuid);
+        return new DefaultServiceResponse("Deleted");
+    }
+
+    public DefaultServiceResponse deleteInnerNews(Integer newsId) {
+        mySQLJdbcRepository.deleteInnerNews(newsId);
+        return new DefaultServiceResponse("Deleted");
+    }
+
+    public DefaultServiceResponse deleteEvent(Integer eventId) {
+        mySQLJdbcRepository.deleteEvent(eventId);
         return new DefaultServiceResponse("Deleted");
     }
 

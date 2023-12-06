@@ -29,6 +29,11 @@ public class UserController {
         return new ResponseEntity<>(serviceWrapper.getUsers(roleId), HttpStatus.OK);
     }
 
+    @GetMapping(value = "/students", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<GetListResponse<User>> getStudents(@RequestParam(required = false) Integer classId) {
+        return new ResponseEntity<>(serviceWrapper.getStudents(classId), HttpStatus.OK);
+    }
+
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SingleItemResponse<UserExtended>> getUserDetails(@PathVariable("id") Integer userId) {
         return new ResponseEntity<>(serviceWrapper.getUserDetails(userId), HttpStatus.OK);

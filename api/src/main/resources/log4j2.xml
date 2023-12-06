@@ -39,6 +39,7 @@
             <AppenderRef ref="rollingFileInfo"/>
             <AppenderRef ref="rollingFileError"/>
         </Root>
+        <Logger name="org.springframework.web.socket.handler.ExceptionWebSocketHandlerDecorator" level="debug" />
 <!--        <Logger name="ERROR" level="ERROR">-->
 <!--            <AppenderRef ref="rollingFileError"/>-->
 <!--        </Logger>-->

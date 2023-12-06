@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(callSuper=false)
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({"item"})
+@JsonPropertyOrder({"item","notFound"})
 public class SingleItemResponse<T> extends DefaultServiceResponse {
     private T item;
     private Boolean notFound;
@@ -32,6 +32,7 @@ public class SingleItemResponse<T> extends DefaultServiceResponse {
     public String toString() {
         return "SingleItemResponse{" +
                 "item=" + item +
+                ", notFound=" + notFound +
                 ", error=" + error +
                 ", message='" + message + '\'' +
                 '}';

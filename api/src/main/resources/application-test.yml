@@ -1,11 +1,25 @@
 spring:
   mysqldatasource:
-    url: jdbc:mysql://localhost:3306/erudit?useSSL=false
+    url: jdbc:mysql://localhost:3306/erudit_rebuild?useSSL=false
     username: root
-    password:
+    password: root
+  data:
+    mongodb:
+      username: root
+      password: example
+      database: test
+      port: 27018
+
 
 fileDirectory: "D:/Github/erudit_isit/files"
 
 #springdoc:
 #  swagger-ui:
+server:
+  ssl:
+    key-store-type: PKCS12
+    key-store: classpath:keystore.p12
+    key-store-password: changeit
+    key-alias: baeldung
+    enabled: false
 #    path: /index.html

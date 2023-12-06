@@ -41,6 +41,17 @@ public class ScheduleController {
         return new ResponseEntity<>(serviceWrapper.getSchedule(schedule, fromDate, toDate), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAuthority('SUPERADMIN')")
+    @GetMapping(value = "/individual", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<SingleItemResponse<ScheduleCompleted>> getIndividualSchedule(@RequestParam Integer studentId, @RequestParam Integer trimesterId,
+                                                                             @RequestParam @DateTimeFormat(pattern="dd.MM.yyyy") Date fromDate,
+                                                                             @RequestParam @DateTimeFormat(pattern="dd.MM.yyyy") Date toDate) {
+        ScheduleCompleted schedule = new ScheduleCompleted();
+        schedule.setStudentId(studentId);
+        schedule.setTrimesterId(trimesterId);
+        return new ResponseEntity<>(serviceWrapper.getIndividualSchedule(schedule, fromDate, toDate), HttpStatus.OK);
+    }
+
     @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SingleItemResponse<Schedule>> addSchedule(@RequestBody Schedule schedule) {
         return new ResponseEntity<>(serviceWrapper.addSchedule(schedule), HttpStatus.OK);
@@ -52,11 +63,14 @@ public class ScheduleController {
         return new ResponseEntity<>(serviceWrapper.fillSchedule(scheduleId, scheduleDayList), HttpStatus.OK);
     }
 
-    @PutMapping(value = "/day/{dayId}",produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<DefaultServiceResponse> updateDay(@PathVariable("dayId") Integer dayId,
-                                                           @RequestBody ScheduleDay scheduleDay) {
-        scheduleDay.setId(dayId);
+    @PutMapping(value = "/day",produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> updateDay(@RequestBody ScheduleDay scheduleDay) {
         return new ResponseEntity<>(serviceWrapper.updateDay(scheduleDay), HttpStatus.OK);
+    }
+
+    @PutMapping(value = "/individual/{id}",produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> updateIndividualDay(@PathVariable("id") Integer scheduleId, @RequestBody ScheduleDay scheduleDay) {
+        return new ResponseEntity<>(serviceWrapper.updateIndividualDay(scheduleId, scheduleDay), HttpStatus.OK);
     }
 
     @GetMapping(value = "/item_types", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -75,9 +89,10 @@ public class ScheduleController {
         return new ResponseEntity<>(serviceWrapper.getScheduleItemTemplate(), HttpStatus.OK);
     }
 
-    @GetMapping(value = "/item/{scheduleItemId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<GetListResponse<StudentItem>> getScheduleItemById(@PathVariable("scheduleItemId") Integer scheduleItemId) {
-        return new ResponseEntity<>(serviceWrapper.getScheduleItemById(scheduleItemId), HttpStatus.OK);
+    @GetMapping(value = "/items", produces = MediaType.APPLICATION_JSON_VALUE)
+//    public ResponseEntity<GetListResponse<StudentItem>> getScheduleItemById(@PathVariable("scheduleItemId") Integer scheduleItemId) {
+    public ResponseEntity<GetListResponse<ClassItem>> getScheduleItemByIds(@RequestParam("ids") String scheduleItemIds) {
+        return new ResponseEntity<>(serviceWrapper.getScheduleItemByIds(scheduleItemIds), HttpStatus.OK);
     }
 
     @PutMapping(value = "/item/{scheduleItemId}/visit", produces = MediaType.APPLICATION_JSON_VALUE)

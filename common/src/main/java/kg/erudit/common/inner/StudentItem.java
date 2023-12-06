@@ -22,29 +22,7 @@ public class StudentItem {
     private String surname;
     private String patronymic;
     @JsonIgnore
-    private Map<Integer, ScheduleDay> scheduleDaysMap;
-
-//    public StudentItem(Integer id, String name, String surname, String patronymic, Integer dayId, Date date, Integer scheduleItemId, String grades) {
-//        this.id = id;
-//        this.name = name;
-//        this.surname = surname;
-//        this.patronymic = patronymic;
-//        if (this.scheduleDaysMap == null) {
-//            this.scheduleDaysMap = new LinkedHashMap<>();
-//            this.scheduleDaysMap.put(dayId, new ScheduleDay(dayId,date));
-//        }
-//        ScheduleDay scheduleDay = this.scheduleDaysMap.get(dayId);
-//        List<Grade> gradesList = new LinkedList<>();
-//        if (grades != null) {
-//            String[] gradesArray = grades.split(";");
-//            for (String a : gradesArray) {
-//                String[] b = a.split("_");
-//                gradesList.add(new Grade(Integer.parseInt(b[0]), Integer.parseInt(b[1])));
-//            }
-//        }
-//        ScheduleItem scheduleItem = new ScheduleItem(scheduleItemId, gradesList);
-//        scheduleDay.getItems().add(scheduleItem);
-//    }
+    private Map<Date, ScheduleDay> scheduleDaysMap;
 
     public StudentItem(Integer id, String name, String surname, String patronymic) {
         this.id = id;
@@ -55,11 +33,11 @@ public class StudentItem {
             this.scheduleDaysMap = new LinkedHashMap<>();
     }
 
-    public void addScheduleDay(Integer dayId, Date date, Integer scheduleItemId, String grades, Boolean visited, LocalTime startTime, LocalTime endTime) {
-        ScheduleDay scheduleDay = this.scheduleDaysMap.get(dayId);
+    public void addScheduleDay(Date date, Integer scheduleItemId, String grades, Boolean visited, Boolean individual, LocalTime startTime, LocalTime endTime) {
+        ScheduleDay scheduleDay = this.scheduleDaysMap.get(date);
         if (scheduleDay == null) {
-            scheduleDay = new ScheduleDay(dayId, date);
-            this.scheduleDaysMap.put(dayId, scheduleDay);
+            scheduleDay = new ScheduleDay(date);
+            this.scheduleDaysMap.put(date, scheduleDay);
         }
         List<Grade> gradesList = new LinkedList<>();
         if (grades != null) {
@@ -69,12 +47,23 @@ public class StudentItem {
                 gradesList.add(new Grade(Integer.parseInt(b[0]), Integer.parseInt(b[1])));
             }
         }
-        ScheduleItem scheduleItem = new ScheduleItem(scheduleItemId, gradesList, visited, startTime, endTime);
+        ScheduleItem scheduleItem = new ScheduleItem(scheduleItemId, gradesList, visited, individual, startTime, endTime);
         scheduleDay.getItems().add(scheduleItem);
     }
 
     @JsonGetter("scheduleDays")
     public List<ScheduleDay> getScheduleDays() {
         return scheduleDaysMap.values().stream().toList();
+    }
+
+    @Override
+    public String toString() {
+        return "StudentItem{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", surname='" + surname + '\'' +
+                ", patronymic='" + patronymic + '\'' +
+                ", scheduleDaysMap=" + scheduleDaysMap +
+                '}';
     }
 }

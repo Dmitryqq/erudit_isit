@@ -20,6 +20,7 @@ import java.util.List;
 public class DiaryItem {
     private String subjectName;
     private Boolean visited;
+    private Boolean individual;
     private List<String> homework;
     private List<Grade> grades;
     @JsonFormat(pattern = "HH:mm")
@@ -27,9 +28,10 @@ public class DiaryItem {
     @JsonFormat(pattern = "HH:mm")
     private LocalTime endTime;
 
-    public DiaryItem(String subjectName, String homework, String grades, Boolean visited, LocalTime startTime, LocalTime endTime) {
+    public DiaryItem(String subjectName, String homework, String grades, Boolean visited, Boolean individual, LocalTime startTime, LocalTime endTime) {
         this.subjectName = subjectName;
         this.visited = visited;
+        this.individual = individual;
 //        _____
         if (homework != null) {
             String[] homeworkArray = homework.split("_____");
@@ -53,7 +55,9 @@ public class DiaryItem {
     public String toString() {
         return "DiaryItem{" +
                 "subjectName='" + subjectName + '\'' +
-                ", homework='" + homework + '\'' +
+                ", visited=" + visited +
+                ", individual=" + individual +
+                ", homework=" + homework +
                 ", grades=" + grades +
                 ", startTime=" + startTime +
                 ", endTime=" + endTime +

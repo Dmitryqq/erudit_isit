@@ -2,15 +2,19 @@ package kg.erudit.db.repository;
 
 import kg.erudit.common.inner.Class;
 import kg.erudit.common.inner.*;
+import kg.erudit.common.inner.chat.ChatListItem;
 import kg.erudit.common.req.GradeRequest;
 import kg.erudit.db.props.MySQLDatabaseProperties;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
@@ -19,6 +23,7 @@ import javax.sql.DataSource;
 import java.sql.Date;
 import java.sql.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Repository
 @Log4j2
@@ -95,6 +100,15 @@ public class MySQLJdbcRepository {
         return usersList;
     }
 
+    public List<User> getStudents(Integer classId) {
+        List<User> usersList = new LinkedList<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("classId", classId);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_STUDENTS"), parameters, rs -> {
+            usersList.add(new User(rs.getInt("id"), rs.getString("name"), rs.getString("surname"), rs.getString("patronymic")));
+        });
+        return usersList;
+    }
+
     public UserExtended getUserDetails(Integer userId) {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", userId);
         return namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_USER_DETAILS"), parameters, rs -> {
@@ -141,7 +155,7 @@ public class MySQLJdbcRepository {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleId", scheduleId);
         return namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE"), parameters, rs -> {
             if (!rs.next()) return null;
-            return new Schedule(rs.getInt("id"), rs.getInt("class_id"), rs.getInt("trimester_id"),
+            return new Schedule(rs.getInt("id"), rs.getObject("class_id", Integer.class), rs.getObject("student_id", Integer.class), rs.getInt("trimester_id"),
                     rs.getString("status"), rs.getDate("start_date"), rs.getDate("end_date"));
         });
     }
@@ -155,73 +169,139 @@ public class MySQLJdbcRepository {
             schedule.setStartDate(rs.getDate("start_date"));
             schedule.setEndDate(rs.getDate("end_date"));
         });
-
     }
 
-    public Map<String, ScheduleDay> getScheduleDays(Integer scheduleId, java.util.Date fromDate, java.util.Date toDate) {
-        Map<String, ScheduleDay> scheduleDayMap = new LinkedHashMap<>();
-        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", scheduleId).addValue("fromDate", new java.sql.Date(fromDate.getTime()), Types.TIMESTAMP).addValue("toDate", new java.sql.Date(toDate.getTime()), Types.TIMESTAMP);
-        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_BY_DATE_RANGE"), parameters, rs -> {
-            scheduleDayMap.put(String.valueOf(rs.getInt("id")), new ScheduleDay(rs.getInt("id"), rs.getDate("date")));
+    public void getClassScheduleByStudent(ScheduleCompleted schedule) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("studentId", schedule.getStudentId()).addValue("trimesterId", schedule.getTrimesterId());
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_CLASS_SCHEDULE_BY_STUDENT_TRIMESTER"), parameters, rs -> {
+//            if (!rs.next()) return;
+            schedule.setId(rs.getInt("id"));
+            schedule.setClassId(rs.getInt("class_id"));
+            schedule.setStatus(rs.getString("status"));
+            schedule.setStartDate(rs.getDate("start_date"));
+            schedule.setEndDate(rs.getDate("end_date"));
         });
-        this.getScheduleDaysItems(scheduleDayMap);
-        return scheduleDayMap;
     }
 
-    public Map<String, ScheduleDay> getScheduleDays(Integer scheduleId) {
-        Map<String, ScheduleDay> scheduleDayMap = new LinkedHashMap<>();
+    public void fillUpIndividualSchedule(ScheduleCompleted schedule) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("studentId", schedule.getStudentId()).addValue("trimesterId", schedule.getTrimesterId());
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_BY_STUDENT_TRIMESTER"), parameters, rs -> {
+            schedule.setId(rs.getInt("id"));
+            schedule.setStatus(rs.getString("status"));
+            schedule.setStartDate(rs.getDate("start_date"));
+            schedule.setEndDate(rs.getDate("end_date"));
+        });
+    }
+
+    public Map<Date, ScheduleDay> getScheduleDays(Integer scheduleId) {
+        Map<Date, ScheduleDay> scheduleDayMap = new LinkedHashMap<>();
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", scheduleId);
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_CURRENT_WEEK_SCHEDULE_BY_ID"), parameters, rs -> {
-            scheduleDayMap.put(String.valueOf(rs.getInt("id")), new ScheduleDay(rs.getInt("id"), rs.getDate("date")));
+            if (scheduleDayMap.get(rs.getDate("date")) == null)
+                scheduleDayMap.put(rs.getDate("date"), new ScheduleDay(rs.getDate("date")));
+            scheduleDayMap.get(rs.getDate("date")).getItems()
+                    .add(new ScheduleItem(rs.getInt("id"), rs.getInt("type_id"), rs.getObject("subject_id", Integer.class),
+                            rs.getObject("teacher_id", Integer.class), rs.getString("status"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
         });
         if (scheduleDayMap.isEmpty()) {
             namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_FIRST_WEEK_SCHEDULE_BY_ID"), parameters, rs -> {
-                scheduleDayMap.put(String.valueOf(rs.getInt("id")), new ScheduleDay(rs.getInt("id"), rs.getDate("date")));
+                if (scheduleDayMap.get(rs.getDate("date")) == null)
+                    scheduleDayMap.put(rs.getDate("date"), new ScheduleDay(rs.getDate("date")));
+                scheduleDayMap.get(rs.getDate("date")).getItems()
+                        .add(new ScheduleItem(rs.getInt("id"), rs.getInt("type_id"), rs.getObject("subject_id", Integer.class),
+                                rs.getObject("teacher_id", Integer.class), rs.getString("status"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
             });
         }
         if (scheduleDayMap.isEmpty())
             return null;
-        this.getScheduleDaysItems(scheduleDayMap);
+//        this.getScheduleDaysItems(scheduleDayMap);
         return scheduleDayMap;
     }
 
-    public void getScheduleDaysItems(Map<String, ScheduleDay> scheduleDayMap) {
-        SqlParameterSource parameters = new MapSqlParameterSource().addValue("dayIds", scheduleDayMap.keySet().stream().toList());
-        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_ITEMS_BY_DAY_IDS"), parameters, rs -> {
-            scheduleDayMap.get(String.valueOf(rs.getInt("day_id"))).getItems().add(new ScheduleItem(rs.getInt("id"), rs.getInt("type_id"), rs.getObject("subject_id", Integer.class),
-                    rs.getObject("teacher_id", Integer.class), rs.getString("status"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+    public Map<Date, ScheduleDay> getScheduleDaysItems(Integer scheduleId, java.util.Date fromDate, java.util.Date toDate) {
+        Map<Date, ScheduleDay> scheduleDayMap = new LinkedHashMap<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", scheduleId).addValue("fromDate", new java.sql.Date(fromDate.getTime()), Types.TIMESTAMP).addValue("toDate", new java.sql.Date(toDate.getTime()), Types.TIMESTAMP);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_ITEMS_BY_SCHEDULE_ID"), parameters, rs -> {
+            if (scheduleDayMap.get(rs.getDate("date")) == null)
+                scheduleDayMap.put(rs.getDate("date"), new ScheduleDay(rs.getDate("date")));
+            scheduleDayMap.get(rs.getDate("date")).getItems()
+                    .add(new ScheduleItem(rs.getInt("id"), rs.getInt("type_id"), rs.getObject("subject_id", Integer.class),
+                            rs.getObject("teacher_id", Integer.class), rs.getString("status"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
         });
+        return scheduleDayMap;
     }
 
-    public Map<Integer, Diary> getDiary(String username, java.util.Date fromDate, java.util.Date toDate) {
-        Map<Integer, Diary> diaryMap = new LinkedHashMap<>();
-        SqlParameterSource parameters = new MapSqlParameterSource().addValue("username", username)
+    public Map<Date, ScheduleDay> getIndividualScheduleDaysItems(Integer classScheduleId, Integer individualScheduleId, java.util.Date fromDate, java.util.Date toDate) {
+        Map<Date, ScheduleDay> scheduleDayMap = new LinkedHashMap<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("classScheduleId", classScheduleId)
+                .addValue("individualScheduleId", individualScheduleId)
+                .addValue("fromDate", new java.sql.Date(fromDate.getTime()), Types.TIMESTAMP)
+                .addValue("toDate", new java.sql.Date(toDate.getTime()), Types.TIMESTAMP);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_INDIVIDUAL_SCHEDULE_ITEMS_BY_IDS"), parameters, rs -> {
+            if (scheduleDayMap.get(rs.getDate("date")) == null)
+                scheduleDayMap.put(rs.getDate("date"), new ScheduleDay(rs.getDate("date")));
+            scheduleDayMap.get(rs.getDate("date")).getItems()
+                    .add(new ScheduleItem(rs.getInt("id"), rs.getInt("type_id"), rs.getObject("subject_id", Integer.class),
+                            rs.getObject("teacher_id", Integer.class), rs.getString("status"), rs.getInt("individual") != 0,
+                            rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+        });
+        return scheduleDayMap;
+    }
+
+    public List<ScheduleItem> getIndividualScheduleDaysLessons(Integer individualScheduleId, java.util.Date date) {
+        List<ScheduleItem> scheduleItems = new LinkedList<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("classScheduleId", individualScheduleId)
+                .addValue("individualScheduleId", individualScheduleId)
+                .addValue("date", new java.sql.Date(date.getTime()), Types.TIMESTAMP);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_INDIVIDUAL_SCHEDULE_ITEMS_BY_IND_ID"), parameters, rs -> {
+            scheduleItems.add(new ScheduleItem(rs.getInt("id"), rs.getInt("type_id"), rs.getObject("subject_id", Integer.class),
+                    rs.getObject("teacher_id", Integer.class), rs.getString("status"), rs.getInt("individual") != 0,
+                    rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+        });
+        return scheduleItems;
+    }
+
+    public Map<Date, Diary> getDiary(Integer userId, java.util.Date fromDate, java.util.Date toDate) {
+        Map<Date, Diary> diaryMap = new LinkedHashMap<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("userId", userId)
                 .addValue("fromDate", new java.sql.Date(fromDate.getTime()), Types.TIMESTAMP)
                 .addValue("toDate", new java.sql.Date(toDate.getTime()), Types.TIMESTAMP);
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_AUTH_STUDENT_DIARY"), parameters, rs -> {
-            Diary diary = diaryMap.get(rs.getInt("day_id"));
+            Diary diary = diaryMap.get(rs.getDate("date"));
             if (diary == null) {
                 diary = new Diary(rs.getDate("date"));
-                diaryMap.put(rs.getInt("day_id"), diary);
+                diaryMap.put(rs.getDate("date"), diary);
             }
             DiaryItem diaryItem = new DiaryItem(rs.getString("subject_name"), rs.getString("homework"), rs.getString("grades"),
-                    rs.getInt("visited") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
+                    rs.getInt("visited") != 0, rs.getInt("individual") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
             diary.getDiaryItems().add(diaryItem);
         });
         return diaryMap;
     }
 
-    public Map<Integer, StudentItem> getDiaryByScheduleItemId(Integer scheduleItemId) {
-        Map<Integer, StudentItem> diaryItems = new LinkedHashMap<>();
-        SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleItemId", scheduleItemId);
+    public Map<Integer, ClassItem> getDiaryByScheduleItemIds(String scheduleItemIds) {
+        Map<Integer, ClassItem> diaryItems = new LinkedHashMap<>();
+        List<Integer> items = Arrays.stream(scheduleItemIds.split(",")).mapToInt(Integer::parseInt).boxed().toList();
+
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleItemIds", items);
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_DIARY_BY_SCHEDULE_ITEM_ID"), parameters, rs -> {
-            StudentItem studentItem = diaryItems.get(rs.getInt("u_id"));
+            ClassItem classItem = diaryItems.get(rs.getInt("c_id"));
+            if (classItem == null) {
+                classItem = new ClassItem(rs.getInt("c_id"), rs.getString("c_name"));
+                diaryItems.put(rs.getInt("c_id"), classItem);
+            }
+            StudentItem studentItem = classItem.getStudentItemMap().get(rs.getInt("u_id"));
             if (studentItem == null) {
                 studentItem = new StudentItem(rs.getInt("u_id"), rs.getString("u_name"), rs.getString("u_surname"), rs.getString("u_patronymic"));
-                diaryItems.put(studentItem.getId(), studentItem);
+                classItem.getStudentItemMap().put(studentItem.getId(), studentItem);
             }
-            studentItem.addScheduleDay(rs.getInt("d_id"), rs.getDate("date"), rs.getInt("si_id"),
-                    rs.getString("grades"), rs.getInt("visited") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
+            studentItem.addScheduleDay(rs.getDate("date"), rs.getInt("si_id"),
+                    rs.getString("grades"), rs.getInt("visited") != 0, rs.getInt("individual") != 0,
+                    rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
+
+        });
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_CLASS_CURRENT_SI_ID"), parameters, rs -> {
+            diaryItems.get(rs.getInt("class_id")).setScheduleItemId(rs.getInt("id"));
         });
         return diaryItems;
     }
@@ -237,8 +317,8 @@ public class MySQLJdbcRepository {
                 studentItem = new StudentItem(rs.getInt("u_id"), rs.getString("u_name"), rs.getString("u_surname"), rs.getString("u_patronymic"));
                 diaryItems.put(studentItem.getId(), studentItem);
             }
-            studentItem.addScheduleDay(rs.getInt("d_id"), rs.getDate("date"), rs.getInt("si_id"),
-                    rs.getString("grades"), rs.getInt("visited") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
+            studentItem.addScheduleDay(rs.getDate("date"), rs.getInt("si_id"),
+                    rs.getString("grades"), rs.getInt("visited") != 0, rs.getInt("individual") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime());
         });
         return diaryItems;
     }
@@ -249,8 +329,8 @@ public class MySQLJdbcRepository {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("userId", userId)
                 .addValue("date", new java.sql.Date(date.getTime()), Types.TIMESTAMP);
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_ITEMS_STUDENT_DASHBOARD"), parameters, rs -> {
-            scheduleItems.add(new ScheduleItemDashboard(rs.getInt("id"), rs.getInt("sit_id"), rs.getString("sit_name"),
-                    rs.getInt("sj_id"), rs.getString("sj_name"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+            scheduleItems.add(new ScheduleItemDashboard(rs.getString("id"), rs.getInt("sit_id"), rs.getString("sit_name"),
+                    rs.getInt("sj_id"), rs.getString("sj_name"), rs.getInt("individual") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
         });
         return scheduleItems;
     }
@@ -260,8 +340,8 @@ public class MySQLJdbcRepository {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("userId", userId)
                 .addValue("date", new java.sql.Date(date.getTime()), Types.TIMESTAMP);
         namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_SCHEDULE_ITEMS_TEACHER_DASHBOARD"), parameters, rs -> {
-            scheduleItems.add(new ScheduleItemDashboard(rs.getInt("id"), rs.getInt("sit_id"), rs.getString("sit_name"),
-                    rs.getInt("sj_id"), rs.getString("sj_name"), rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
+            scheduleItems.add(new ScheduleItemDashboard(rs.getString("ids"), rs.getString("classes"), rs.getInt("sit_id"), rs.getString("sit_name"),
+                    rs.getInt("sj_id"), rs.getString("sj_name"), rs.getInt("individual") != 0, rs.getTime("start_time").toLocalTime(), rs.getTime("end_time").toLocalTime()));
         });
         return scheduleItems;
     }
@@ -275,6 +355,17 @@ public class MySQLJdbcRepository {
         return homeworkDates;
     }
 
+    public List<ChatListItem> getChatUsersInfo(Map<Integer, String> chatUserList) {
+        List<ChatListItem> chatList = new LinkedList<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("chatUserIds", chatUserList.keySet());
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_CHAT_USERS_INFO"), parameters, rs -> {
+            ChatListItem chatListItem = new ChatListItem(rs.getInt("id"), rs.getString("name"), rs.getString("surname"), rs.getString("patronymic"), rs.getString("role_code"));
+            chatListItem.setChatId(chatUserList.get(chatListItem.getUserId()));
+            chatList.add(chatListItem);
+        });
+        return chatList;
+    }
+
     public void addClass(Class clazz) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -284,6 +375,47 @@ public class MySQLJdbcRepository {
             return preparedStatement;
         }, keyHolder);
         clazz.setId(keyHolder.getKey().intValue());
+    }
+
+    public void addInnerNews(InnerNews innerNews) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement preparedStatement = connection.prepareStatement(mySQLDatabaseProperties.getQueries().get("INSERT_NEWS_INNER"), Statement.RETURN_GENERATED_KEYS);
+            preparedStatement.setInt(1, innerNews.getClassId());
+            preparedStatement.setString(2, innerNews.getName());
+            preparedStatement.setString(3, innerNews.getDescription());
+            preparedStatement.setDate(4, new Date(innerNews.getDate().getTime()));
+            return preparedStatement;
+        }, keyHolder);
+        innerNews.setId(keyHolder.getKey().intValue());
+    }
+
+    public void addEvent(Event event) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement preparedStatement = connection.prepareStatement(mySQLDatabaseProperties.getQueries().get("INSERT_EVENTS"), Statement.RETURN_GENERATED_KEYS);
+            preparedStatement.setInt(1, event.getClassId());
+            preparedStatement.setString(2, event.getName());
+            preparedStatement.setString(3, event.getDescription());
+            preparedStatement.setDate(4, new Date(event.getDate().getTime()));
+            return preparedStatement;
+        }, keyHolder);
+        event.setId(keyHolder.getKey().intValue());
+    }
+
+    public void addIndividualScheduleItem(Integer scheduleId, java.util.Date date, ScheduleItem scheduleItem) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement preparedStatement = connection.prepareStatement(mySQLDatabaseProperties.getQueries().get("INSERT_SCHEDULE_ITEM_INDIVIDUAL"), Statement.RETURN_GENERATED_KEYS);
+            preparedStatement.setInt(1, scheduleId);
+            preparedStatement.setInt(2, scheduleItem.getSubjectId());
+            preparedStatement.setInt(3, scheduleItem.getUserId());
+            preparedStatement.setDate(4, new Date(date.getTime()));
+            preparedStatement.setTime(5, Time.valueOf(scheduleItem.getStartTime()));
+            preparedStatement.setTime(6, Time.valueOf(scheduleItem.getEndTime()));
+            return preparedStatement;
+        }, keyHolder);
+        scheduleItem.setId(keyHolder.getKey().intValue());
     }
 
     public void addNews(NewsSingle news) {
@@ -337,7 +469,7 @@ public class MySQLJdbcRepository {
     }
 
     public void addReview(Review review) {
-        SqlParameterSource parameters = new MapSqlParameterSource().addValue("name", review.getName()).addValue("role", review.getRole()).addValue("rating", review.getRating()).addValue("text", review.getText()).addValue("image", review.getImage().getFullFileName());
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("name", review.getName()).addValue("role", review.getRole()).addValue("rating", review.getRating()).addValue("text", review.getText()).addValue("image", review.getImage() != null ? review.getImage().getFullFileName() : null);
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("INSERT_REVIEW"), parameters);
     }
 
@@ -345,7 +477,7 @@ public class MySQLJdbcRepository {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement preparedStatement = connection.prepareStatement(mySQLDatabaseProperties.getQueries().get("INSERT_USER"), Statement.RETURN_GENERATED_KEYS);
-            preparedStatement.setString(1, user.getUsername());
+            preparedStatement.setString(1, user.getUsername().trim().toLowerCase(Locale.ROOT));
             preparedStatement.setString(2, user.getName());
             preparedStatement.setString(3, user.getSurname());
             preparedStatement.setString(4, user.getPatronymic());
@@ -415,6 +547,19 @@ public class MySQLJdbcRepository {
         schedule.setId(keyHolder.getKey().intValue());
     }
 
+    public void addIndividualSchedule(Schedule schedule) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement preparedStatement = connection.prepareStatement(mySQLDatabaseProperties.getQueries().get("INSERT_SCHEDULE_INDIVIDUAL"), Statement.RETURN_GENERATED_KEYS);
+            preparedStatement.setInt(1, schedule.getStudentId());
+            preparedStatement.setInt(2, schedule.getTrimesterId());
+            preparedStatement.setDate(3, new java.sql.Date(schedule.getStartDate().getTime()));
+            preparedStatement.setDate(4, new java.sql.Date(schedule.getEndDate().getTime()));
+            return preparedStatement;
+        }, keyHolder);
+        schedule.setId(keyHolder.getKey().intValue());
+    }
+
     public void updateScheduleStatus(Integer scheduleId, String status) {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleId", scheduleId)
                 .addValue("status", status);
@@ -450,20 +595,33 @@ public class MySQLJdbcRepository {
         jdbcTemplate.update(mySQLDatabaseProperties.getProcedures().get("FILL_SCHEDULE_FROM_TEMP"), scheduleId);
     }
 
-    public void newGrade(GradeRequest gradeRequest, Integer userId) {
-        jdbcTemplate.update(mySQLDatabaseProperties.getProcedures().get("NEW_GRADE"),
-                gradeRequest.getScheduleItemId(), gradeRequest.getStudentId(), gradeRequest.getGradeTypeId(), gradeRequest.getValue(), userId);
-    }
+    public Map<String, Object> newGrade(GradeRequest gradeRequest, Integer userId) {
+//        jdbcTemplate.update(mySQLDatabaseProperties.getProcedures().get("NEW_GRADE"),
+//                gradeRequest.getScheduleItemId(), gradeRequest.getStudentId(), gradeRequest.getGradeTypeId(), gradeRequest.getValue(), userId);
 
-    public void addScheduleDay(Integer scheduleId, ScheduleDay scheduleDay) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            PreparedStatement preparedStatement = connection.prepareStatement(mySQLDatabaseProperties.getQueries().get("INSERT_SCHEDULE_DAY"), Statement.RETURN_GENERATED_KEYS);
-            preparedStatement.setInt(1, scheduleId);
-            preparedStatement.setDate(2, new Date(scheduleDay.getDate().getTime()));
-            return preparedStatement;
-        }, keyHolder);
-        scheduleDay.setId(keyHolder.getKey().intValue());
+        SimpleJdbcCall simpleJdbcCall = new SimpleJdbcCall(jdbcTemplate)
+                .withProcedureName(mySQLDatabaseProperties.getProcedures().get("NEW_GRADE"))
+                .withoutProcedureColumnMetaDataAccess()
+                .declareParameters(
+                        new SqlParameter("_schedule_item_id", Types.INTEGER),
+                        new SqlParameter("_student_id", Types.INTEGER),
+                        new SqlParameter("_grade_type_id", Types.INTEGER),
+                        new SqlParameter("_value", Types.INTEGER),
+                        new SqlParameter("_teacher_id", Types.INTEGER),
+                        new SqlOutParameter("subject_name", Types.VARCHAR),
+                        new SqlOutParameter("grade_type_name", Types.VARCHAR),
+                        new SqlOutParameter("teacher_fullname", Types.VARCHAR)
+                );
+
+        Map<String, Object> inParamMap = new HashMap<>();
+        inParamMap.put("_schedule_item_id", gradeRequest.getScheduleItemId());
+        inParamMap.put("_student_id", gradeRequest.getStudentId());
+        inParamMap.put("_grade_type_id", gradeRequest.getGradeTypeId());
+        inParamMap.put("_value", gradeRequest.getValue());
+        inParamMap.put("_teacher_id", userId);
+        SqlParameterSource in = new MapSqlParameterSource(inParamMap);
+
+        return simpleJdbcCall.execute(in);
     }
 
     public void addHomework(Homework homework, String username) {
@@ -516,6 +674,13 @@ public class MySQLJdbcRepository {
         });
     }
 
+    public void updateScheduleItem(ScheduleItem scheduleItem) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", scheduleItem.getId())
+                .addValue("subject_id", scheduleItem.getSubjectId()).addValue("teacher_id", scheduleItem.getUserId());
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_SCHEDULE_ITEM"), parameters);
+    }
+
+
     public void updateClass(Class clazz) {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", clazz.getId()).addValue("number", clazz.getNumber()).addValue("letter", clazz.getLetter());
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_CLASS"), parameters);
@@ -552,8 +717,26 @@ public class MySQLJdbcRepository {
     }
 
     public void updateReview(Review review) {
-        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", review.getId()).addValue("name", review.getName()).addValue("role", review.getRole()).addValue("rating", review.getRating()).addValue("text", review.getText()).addValue("image", review.getImage().getFullFileName());
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", review.getId()).addValue("name", review.getName()).addValue("role", review.getRole()).addValue("rating", review.getRating()).addValue("text", review.getText()).addValue("image", review.getImage() != null ? review.getImage().getFullFileName() : null);
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_REVIEW"), parameters);
+    }
+
+    public void updateInnerNews(InnerNews news) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", news.getId())
+                .addValue("classId", news.getClassId())
+                .addValue("name", news.getName())
+                .addValue("description", news.getDescription())
+                .addValue("date", new Date(news.getDate().getTime()));
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_INNER_NEWS"), parameters);
+    }
+
+    public void updateEvent(Event event) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", event.getId())
+                .addValue("classId", event.getClassId())
+                .addValue("name", event.getName())
+                .addValue("description", event.getDescription())
+                .addValue("date", new Date(event.getDate().getTime()));
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("UPDATE_EVENT"), parameters);
     }
 
     public void updateGradeType(GradeType gradeType) {
@@ -573,6 +756,11 @@ public class MySQLJdbcRepository {
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_CLASS"), parameters);
     }
 
+    public void deleteScheduleItem(Integer scheduleItemId) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", scheduleItemId);
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_SCHEDULE_ITEM"), parameters);
+    }
+
     public void deleteNews(Integer newsId) {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", newsId);
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_NEWS"), parameters);
@@ -581,6 +769,16 @@ public class MySQLJdbcRepository {
     public void deleteGradeType(Integer gradeTypeId) {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", gradeTypeId);
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_GRADE_TYPE"), parameters);
+    }
+
+    public void deleteInnerNews(Integer newsId) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", newsId);
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_INNER_NEWS"), parameters);
+    }
+
+    public void deleteEvent(Integer eventId) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", eventId);
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_EVENT"), parameters);
     }
 
     public void deleteSubject(Integer subjectId) {
@@ -614,7 +812,6 @@ public class MySQLJdbcRepository {
     }
 
     public void deleteOldNewsImages(Integer newsId, List<String> fileNames) {
-//        String fileNamesStr = fileNames.stream().collect(Collectors.joining("','", "'", "'"));
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("newsId", newsId).addValue("fileNames", fileNames);
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_OLD_NEWS_IMAGES"), parameters);
     }
@@ -642,6 +839,22 @@ public class MySQLJdbcRepository {
             if (!rs.next()) return null;
             return new Review(rs.getInt("id"), rs.getString("name"), rs.getString("role"), rs.getFloat("rating"), rs.getString("text"), rs.getString("image"));
         });
+    }
+
+    public List<InnerNews> getInnerNews() {
+        List<InnerNews> newsList = new LinkedList<>();
+        jdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_INNER_NEWS"), rs -> {
+            newsList.add(new InnerNews(rs.getInt("id"), rs.getInt("class_id"), rs.getString("name"), rs.getString("description"), rs.getDate("date")));
+        });
+        return newsList;
+    }
+
+    public List<Event> getEvents() {
+        List<Event> eventList = new LinkedList<>();
+        jdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_EVENTS"), rs -> {
+            eventList.add(new Event(rs.getInt("id"), rs.getInt("class_id"), rs.getString("name"), rs.getString("description"), rs.getDate("date")));
+        });
+        return eventList;
     }
 
     public List<News> getNews(Integer limit, Integer offset, Boolean getId) {
