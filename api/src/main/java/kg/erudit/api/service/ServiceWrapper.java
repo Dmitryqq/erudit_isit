@@ -8,6 +8,7 @@ import kg.erudit.common.exceptions.AuthenticateException;
 import kg.erudit.common.exceptions.FillScheduleException;
 import kg.erudit.common.inner.Class;
 import kg.erudit.common.inner.*;
+import kg.erudit.common.inner.chat.ChatClasses;
 import kg.erudit.common.inner.chat.ChatListItem;
 import kg.erudit.common.inner.chat.ChatMessage;
 import kg.erudit.common.inner.chat.MessageStatus;
@@ -30,7 +31,6 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Log4j2
@@ -120,6 +120,24 @@ public class ServiceWrapper {
         return response;
     }
 
+    public GetListResponse<Material> getMyMaterials() {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        List<Material> newsList = mySQLJdbcRepository.getStudentMaterials(userId);
+        GetListResponse<Material> response = new GetListResponse<>();
+        response.setItems(newsList);
+        return response;
+    }
+
+    public GetListResponse<Material> getMaterials(Integer classId) {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        List<Material> newsList = mySQLJdbcRepository.getTeacherMaterials(userId, classId);
+        GetListResponse<Material> response = new GetListResponse<>();
+        response.setItems(newsList);
+        return response;
+    }
+
     public GetListResponse<Event> getEvents() {
         GetListResponse<Event> response = new GetListResponse<>();
         List<Event> eventList = mySQLJdbcRepository.getEvents();
@@ -145,6 +163,15 @@ public class ServiceWrapper {
             image.setBase64(base64image);
         }
         return response;
+    }
+
+    public SingleItemResponse<File> getMaterialFile(Integer materialId) throws IOException {
+        File materialFile = mySQLJdbcRepository.getMaterialFileName(materialId);
+        if (materialFile == null)
+            return new SingleItemResponse<>(null, "Not found");
+        String base64image = fileUtil.encodeFileToBase64Binary(materialFile.getFullFileName(), "materials");
+        materialFile.setBase64(base64image);
+        return new SingleItemResponse<>(materialFile);
     }
 
     public GetListResponse<Subject> getSubjects(Boolean teacherRequired) {
@@ -275,6 +302,24 @@ public class ServiceWrapper {
         return response;
     }
 
+    public GetListResponse<ChatClasses> getTeacherContacts() {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        Map<Integer, ChatClasses> contactItems = mySQLJdbcRepository.getTeacherContacts(userId);
+        GetListResponse<ChatClasses> response = new GetListResponse<>();
+        response.setItems(contactItems.values().stream().toList());
+        return response;
+    }
+
+    public GetListResponse<User> getStudentContacts() {
+        CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
+        Integer userId = authentication.getUserId();
+        List<User> contactItems = mySQLJdbcRepository.getStudentContacts(userId);
+        GetListResponse<User> response = new GetListResponse<>();
+        response.setItems(contactItems);
+        return response;
+    }
+
     public GetListResponse<Diary> getDiary(Date fromDate, Date toDate) {
         CustomAuthToken authentication = (CustomAuthToken) SecurityContextHolder.getContext().getAuthentication();
         Integer userId = authentication.getUserId();
@@ -385,6 +430,15 @@ public class ServiceWrapper {
         }
 
         return new SingleItemResponse<>(event, "Created");
+    }
+
+    public SingleItemResponse<Material> addMaterial(Material material) {
+        String materialFileName = UUID.randomUUID().toString().replace("-", "");
+        File materialFile = material.getFile();
+        materialFile.setFileName(materialFileName);
+        fileUtil.saveFile(materialFile, "materials/");
+        mySQLJdbcRepository.addMaterial(material);
+        return new SingleItemResponse<>(material, "Created");
     }
 
     public SingleItemResponse<NewsSingle> addNews(NewsSingle news) {

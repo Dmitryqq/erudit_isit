@@ -15,6 +15,7 @@ logging:
       springframework:
         jdbc.core: TRACE
         web:
+          HttpLogging: TRACE
           servlet.mvc.method.annotation:
             HttpEntityMethodProcessor: TRACE
             RequestResponseBodyMethodProcessor: TRACE

@@ -36,15 +36,20 @@ public class ControllerExceptionHandler {
     }
 
     @ExceptionHandler
-    public ResponseEntity<DefaultServiceResponse> handleSignatureException(SignatureException e) {
-        log.error("Exception", e);
-//        DefaultServiceResponse response = new DefaultServiceResponse(true, e.getMessage());
+    public ResponseEntity<Void> handleSignatureException(SignatureException e) {
+        log.error("Exception", e.getMessage());
         return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler
     public ResponseEntity<DefaultServiceResponse> handleExpiredJwtException(ExpiredJwtException e) {
         log.error(e.getMessage());
+        return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<Void> handleRuntimeException(RuntimeException e) {
+        log.error("Exception", e.getMessage());
         return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
     }
 

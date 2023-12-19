@@ -63,7 +63,6 @@ public class ChatController {
     @GetMapping("/history/{recipientId}")
     public ResponseEntity<GetListResponse> findChatMessages(@PathVariable Integer recipientId,
                                                             @RequestParam(required = false, defaultValue = "20") Integer limit) {
-        recipientId > 19 ?: 12;
         return ResponseEntity.ok(serviceWrapper.getChatMessages(recipientId, limit));
     }
 //

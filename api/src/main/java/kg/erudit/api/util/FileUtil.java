@@ -1,6 +1,5 @@
 package kg.erudit.api.util;
 
-import kg.erudit.common.inner.Image;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,13 +31,13 @@ public class FileUtil {
 //        return Files.readAllBytes(file.toPath());
     }
 
-    public void saveFile(Image image, String path) {
-        byte[] data = Base64.decodeBase64(image.getBase64());
-        File file = new File(String.format("%s/%s/%s", root, path, image.getFullFileName()));
-        if (!file.getParentFile().exists())
-            file.getParentFile().mkdirs();
+    public void saveFile(kg.erudit.common.inner.File file, String path) {
+        byte[] data = Base64.decodeBase64(file.getBase64());
+        File file1 = new File(String.format("%s/%s/%s", root, path, file.getFullFileName()));
+        if (!file1.getParentFile().exists())
+            file1.getParentFile().mkdirs();
 
-        try (OutputStream stream = new FileOutputStream(file)) {
+        try (OutputStream stream = new FileOutputStream(file1)) {
             stream.write(data);
             stream.close();
         } catch (IOException e) {

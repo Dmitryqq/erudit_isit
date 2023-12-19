@@ -1,16 +1,17 @@
 package kg.erudit.api.service;
 
-import jakarta.annotation.PostConstruct;
-import kg.erudit.common.inner.chat.ChatListItem;
 import kg.erudit.common.inner.chat.ChatRoom;
-import kg.erudit.common.resp.GetListResponse;
 import kg.erudit.db.repository.ChatRoomRepository;
-import org.springframework.data.mongodb.core.query.TextCriteria;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
+@Log4j2
 public class ChatRoomService {
 
     private final ChatRoomRepository chatRoomRepository;
@@ -49,6 +50,7 @@ public class ChatRoomService {
 
     public Map<Integer, String> getChatUsers(Integer userId) {
         List<ChatRoom> chatRooms = chatRoomRepository.findBySenderIdOrRecipientId(userId);
+        log.info(chatRooms);
         Map<Integer, String> chatUserList = new LinkedHashMap<>();
         if (chatRooms.isEmpty()) {
             return chatUserList;

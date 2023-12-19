@@ -32,9 +32,6 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             return;
         }
 
-//        if (Boolean.TRUE.equals(claims.get("pwdChangeRequired")))
-//            throw new PasswordChangeRequiredException("Password change required");
-
         setUpSpringAuthentication(claims);
         chain.doFilter(request, response);
     }

@@ -1,30 +1,24 @@
 package kg.erudit.common.inner;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Data
+@EqualsAndHashCode(callSuper=false)
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({"id", "fileName", "ext", "main", "base64"})
-public class Image {
+public class Image extends File {
     private Integer id;
-    private String fileName;
-    private String ext;
+//    private String fileName;
+//    private String ext;
     private Boolean main;
-    private String base64;
-
-    @JsonIgnore
-    public String getFullFileName() {
-//        if (fileName == null || ext == null)
-//            return null;
-        return fileName + "." + ext;
-    }
+//    private String base64;
 
     public Image(String fileName, String ext) {
         this.fileName = fileName;

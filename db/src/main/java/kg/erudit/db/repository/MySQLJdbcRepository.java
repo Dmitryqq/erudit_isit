@@ -2,6 +2,7 @@ package kg.erudit.db.repository;
 
 import kg.erudit.common.inner.Class;
 import kg.erudit.common.inner.*;
+import kg.erudit.common.inner.chat.ChatClasses;
 import kg.erudit.common.inner.chat.ChatListItem;
 import kg.erudit.common.req.GradeRequest;
 import kg.erudit.db.props.MySQLDatabaseProperties;
@@ -23,7 +24,6 @@ import javax.sql.DataSource;
 import java.sql.Date;
 import java.sql.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Repository
 @Log4j2
@@ -346,6 +346,31 @@ public class MySQLJdbcRepository {
         return scheduleItems;
     }
 
+    public Map<Integer, ChatClasses> getTeacherContacts(Integer userId) {
+        Map<Integer, ChatClasses> contactItems = new LinkedHashMap<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("userId", userId);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_CONTACTS_TEACHER"), parameters, rs -> {
+            ChatClasses classItem = contactItems.get(rs.getInt("c_id"));
+            if (classItem == null) {
+                classItem = new ChatClasses(rs.getInt("c_id"), rs.getString("c_name"));
+                contactItems.put(rs.getInt("c_id"), classItem);
+            }
+            User user = new User(rs.getInt("id"), rs.getString("name"), rs.getString("surname"), rs.getString("patronymic"));
+            classItem.getStudentItemMap().put(rs.getInt("id"), user);
+        });
+        return contactItems;
+    }
+
+    public List<User> getStudentContacts(Integer userId) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("userId", userId);
+        List<User> contactList = new LinkedList<>();
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_CONTACTS_STUDENT"), parameters, rs -> {
+            User user = new User(rs.getInt("u_id"), rs.getString("u_name"), rs.getString("u_surname"), rs.getString("u_patronymic"));
+            contactList.add(user);
+        });
+        return contactList;
+    }
+
     public List<HomeworkDate> getNextLessonDates(Integer scheduleItemId) {
         List<HomeworkDate> homeworkDates = new LinkedList<>();
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("scheduleItemId", scheduleItemId);
@@ -430,6 +455,18 @@ public class MySQLJdbcRepository {
             return preparedStatement;
         }, keyHolder);
         news.setId(keyHolder.getKey().intValue());
+    }
+
+    public void addMaterial(Material material) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement preparedStatement = connection.prepareStatement(mySQLDatabaseProperties.getQueries().get("INSERT_MATERIAL"), Statement.RETURN_GENERATED_KEYS);
+            preparedStatement.setInt(1, material.getClassId());
+            preparedStatement.setString(2, material.getName());
+            preparedStatement.setString(3, material.getFile().getFullFileName());
+            return preparedStatement;
+        }, keyHolder);
+        material.setId(keyHolder.getKey().intValue());
     }
 
     public void addNewsImage(Integer newsId, List<Image> imageList) {
@@ -847,6 +884,39 @@ public class MySQLJdbcRepository {
             newsList.add(new InnerNews(rs.getInt("id"), rs.getInt("class_id"), rs.getString("name"), rs.getString("description"), rs.getDate("date")));
         });
         return newsList;
+    }
+
+    public File getMaterialFileName(Integer materialId) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", materialId);
+        return namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_MATERIAL_BY_ID"), parameters, rs -> {
+            if (!rs.next()) return null;
+            return new File(rs.getString("file_name"));
+        });
+    }
+
+    public List<Material> getStudentMaterials(Integer userId) {
+        List<Material> materialList = new LinkedList<>();
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("userId", userId);
+        namedJdbcTemplate.query(mySQLDatabaseProperties.getQueries().get("GET_STUDENT_MATERIALS"), parameters, rs -> {
+            materialList.add(new Material(rs.getInt("id"), rs.getString("name"), rs.getDate("create_date")));
+        });
+        return materialList;
+    }
+
+    public List<Material> getTeacherMaterials(Integer userId, Integer classId) {
+        List<Material> materialList = new LinkedList<>();
+        String query = mySQLDatabaseProperties.getQueries().get("GET_TEACHER_MATERIALS");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("userId", userId);
+        if (classId != null) {
+            query += " AND ut.class_id = :classId";
+            parameters.put("classId", classId);
+        }
+        query += " ORDER BY m.create_date DESC";
+        namedJdbcTemplate.query(query, parameters, rs -> {
+            materialList.add(new Material(rs.getInt("id"), rs.getInt("class_id"), rs.getString("name"), rs.getDate("create_date")));
+        });
+        return materialList;
     }
 
     public List<Event> getEvents() {

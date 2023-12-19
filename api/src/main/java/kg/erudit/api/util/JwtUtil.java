@@ -31,6 +31,7 @@ public class JwtUtil {
 
     public static Claims validateToken(HttpServletRequest request) {
         String jwtToken = request.getHeader(HEADER).replace(PREFIX, "");
+//        return jwtParser.parseClaimsJws(jwtToken).getBody();
         try {
             return jwtParser.parseClaimsJws(jwtToken).getBody();
         } catch (SecurityException | ExpiredJwtException e) {

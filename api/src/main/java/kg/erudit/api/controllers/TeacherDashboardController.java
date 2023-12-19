@@ -2,8 +2,10 @@
 package kg.erudit.api.controllers;
 
 import kg.erudit.api.service.ServiceWrapper;
+import kg.erudit.common.inner.Material;
 import kg.erudit.common.inner.ScheduleItemDashboard;
 import kg.erudit.common.inner.StudentItem;
+import kg.erudit.common.inner.chat.ChatClasses;
 import kg.erudit.common.resp.GetListResponse;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,6 +31,11 @@ public class TeacherDashboardController {
         this.serviceWrapper = serviceWrapper;
     }
 
+    @GetMapping(value = "/contacts", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<GetListResponse<ChatClasses>> contacts() {
+        return new ResponseEntity<>(serviceWrapper.getTeacherContacts(), HttpStatus.OK);
+    }
+
     @GetMapping(value = "/schedule", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<GetListResponse<ScheduleItemDashboard>> mainPage(@RequestParam @DateTimeFormat(pattern="dd.MM.yyyy") Date date) {
         return new ResponseEntity<>(serviceWrapper.getTeacherScheduleDashboard(date), HttpStatus.OK);
@@ -38,5 +45,10 @@ public class TeacherDashboardController {
     public ResponseEntity<GetListResponse<StudentItem>> getDiary(@RequestParam("classId") Integer classId,
                                                                  @RequestParam("subjectId") Integer subjectId) {
         return new ResponseEntity<>(serviceWrapper.getDiaryByClassAndSubjectIds(classId, subjectId), HttpStatus.OK);
+    }
+
+    @GetMapping(value = "/materials", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<GetListResponse<Material>> getMaterials(@RequestParam(value = "classId", required = false) Integer classId) {
+        return new ResponseEntity<>(serviceWrapper.getMaterials(classId), HttpStatus.OK);
     }
 }

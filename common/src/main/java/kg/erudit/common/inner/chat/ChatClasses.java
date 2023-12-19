@@ -1,9 +1,10 @@
-package kg.erudit.common.inner;
+package kg.erudit.common.inner.chat;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import kg.erudit.common.inner.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,15 +17,14 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({"id","scheduleItemId","name","students"})
-public class ClassItem {
+@JsonPropertyOrder({"id","name","students"})
+public class ChatClasses {
     private Integer id;
-    private Integer scheduleItemId;
     private String name;
     @JsonIgnore
-    private Map<Integer, StudentItem> studentItemMap;
+    private Map<Integer, User> studentItemMap;
 
-    public ClassItem(Integer id, String name) {
+    public ChatClasses(Integer id, String name) {
         this.id = id;
         this.name = name;
         if (this.studentItemMap == null)
@@ -32,15 +32,14 @@ public class ClassItem {
     }
 
     @JsonGetter("students")
-    public List<StudentItem> getStudents() {
+    public List<User> getStudents() {
         return studentItemMap.values().stream().toList();
     }
 
     @Override
     public String toString() {
-        return "ClassItem{" +
+        return "ChatClasses{" +
                 "id=" + id +
-                ", scheduleItemId=" + scheduleItemId +
                 ", name='" + name + '\'' +
                 ", studentItemMap=" + studentItemMap +
                 '}';
