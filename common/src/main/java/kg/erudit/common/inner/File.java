@@ -18,7 +18,7 @@ public class File {
     protected String base64;
 
     public File(String fullFileName) {
-        String[] filePart = fileName.split("\\.");
+        String[] filePart = fullFileName.split("\\.");
         this.fileName = filePart[0];
         this.ext = filePart[1];
     }

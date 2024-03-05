@@ -2,7 +2,6 @@ package kg.erudit.api.controllers;
 
 import kg.erudit.api.service.ServiceWrapper;
 import kg.erudit.common.inner.Event;
-import kg.erudit.common.inner.InnerNews;
 import kg.erudit.common.resp.DefaultServiceResponse;
 import kg.erudit.common.resp.GetListResponse;
 import kg.erudit.common.resp.SingleItemResponse;
@@ -12,8 +11,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/events")

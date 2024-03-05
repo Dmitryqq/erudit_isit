@@ -828,6 +828,11 @@ public class MySQLJdbcRepository {
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_REVIEW"), parameters);
     }
 
+    public void deleteMaterial(Integer materialId) {
+        SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", materialId);
+        namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_MATERIAL"), parameters);
+    }
+
     public void deleteUser(Integer userId) {
         SqlParameterSource parameters = new MapSqlParameterSource().addValue("id", userId);
         namedJdbcTemplate.update(mySQLDatabaseProperties.getQueries().get("DELETE_USER"), parameters);

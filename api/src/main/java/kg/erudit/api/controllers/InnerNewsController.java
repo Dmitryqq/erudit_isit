@@ -2,9 +2,6 @@ package kg.erudit.api.controllers;
 
 import kg.erudit.api.service.ServiceWrapper;
 import kg.erudit.common.inner.InnerNews;
-import kg.erudit.common.inner.News;
-import kg.erudit.common.inner.NewsSingle;
-import kg.erudit.common.inner.NewsType;
 import kg.erudit.common.resp.DefaultServiceResponse;
 import kg.erudit.common.resp.GetListResponse;
 import kg.erudit.common.resp.SingleItemResponse;

@@ -62,6 +62,7 @@ public class JwtUtil {
                 .claim("role", user.getRole().getCode())
                 .claim("pwdChangeRequired", user.getPwdChangeRequired())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
+//        7200000
                 .setExpiration(new Date(System.currentTimeMillis() + 7200000))
                 .signWith(key).compact();
     }

@@ -3,6 +3,7 @@ package kg.erudit.api.controllers;
 import kg.erudit.api.service.ServiceWrapper;
 import kg.erudit.common.inner.File;
 import kg.erudit.common.inner.Material;
+import kg.erudit.common.resp.DefaultServiceResponse;
 import kg.erudit.common.resp.SingleItemResponse;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -32,5 +33,10 @@ public class MaterialsController {
     @PostMapping (produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SingleItemResponse<Material>> addMaterial(@RequestBody Material material) {
         return new ResponseEntity<>(serviceWrapper.addMaterial(material), HttpStatus.OK);
+    }
+
+    @DeleteMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<DefaultServiceResponse> deleteMaterial(@PathVariable("id") Integer materialId) {
+        return new ResponseEntity<>(serviceWrapper.deleteMaterial(materialId), HttpStatus.OK);
     }
 }

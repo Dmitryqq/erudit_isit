@@ -1,17 +1,11 @@
 package kg.erudit.api.service;
 
-import kg.erudit.common.inner.chat.ChatMessage;
-import kg.erudit.common.inner.chat.ChatNotification;
-import kg.erudit.common.inner.chat.MessageStatus;
 import kg.erudit.common.inner.notifications.Notification;
-import kg.erudit.common.inner.notifications.NotificationStatus;
 import kg.erudit.db.repository.NotificationsRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class NotificationService {
@@ -30,5 +24,9 @@ public class NotificationService {
 
     public List<Notification> findNotifications(Integer userId, Integer limit) {
         return notificationsRepository.findByUserId(userId, limit);
+    }
+
+    public void deleteNotification(String notificationId) {
+        notificationsRepository.deleteById(notificationId);
     }
 }

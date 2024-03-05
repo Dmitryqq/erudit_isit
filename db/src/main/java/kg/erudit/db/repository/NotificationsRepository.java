@@ -1,7 +1,5 @@
 package kg.erudit.db.repository;
 
-import kg.erudit.common.inner.chat.ChatMessage;
-import kg.erudit.common.inner.chat.MessageStatus;
 import kg.erudit.common.inner.notifications.Notification;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;

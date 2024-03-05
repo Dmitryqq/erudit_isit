@@ -1,8 +1,9 @@
 spring:
   mysqldatasource:
-    url: jdbc:mysql://localhost:3306/erudit?useSSL=false
+    url: jdbc:mysql://localhost:3306/erudit?useSSL=false&allowPublicKeyRetrieval=true
     username: erudit
     password: Erud1t_P@ss$645
+
   data:
     mongodb:
       username: erudit
